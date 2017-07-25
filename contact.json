@@ -1,0 +1,1 @@
+{"agents":[{"ip":"localhost","port":57852,"alive":true},{"ip":"localhost","port":57851,"alive":false}],"local":{"ip":"localhost","port":57851,"alive":false},"coordinator":{"ip":"localhost","port":63408,"alive":true},"timestamp":1500957949}

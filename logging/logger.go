@@ -40,6 +40,10 @@ func (logger *Logger) LogWarning(content string, mode ...int) {
 	logger.Internal.Println("*******" + transform(content, mode...) + "*******")
 }
 
+func (logger *Logger) LogError(content string, mode ...int) {
+	logger.Internal.Println("@@@@@@@" + transform(content, mode...) + "@@@@@@@")
+}
+
 func (logger *Logger) LogNormal(content string, mode ...int) {
 	logger.Internal.Println(transform(content, mode...))
 }
@@ -54,6 +58,10 @@ func LogProgress(content string, mode ...int) {
 
 func LogWarning(content string, mode ...int) {
 	fmt.Println("*******" + transform(content, mode...) + "*******")
+}
+
+func LogError(content string, mode ...int) {
+	fmt.Println("@@@@@@@" + transform(content, mode...) + "@@@@@@@")
 }
 
 func LogNormal(content string, mode ...int) {

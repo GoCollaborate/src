@@ -2,6 +2,8 @@ package server
 
 import (
 	"fmt"
+	"github.com/GoCollaborate/constants"
+	"time"
 )
 
 type taskType int
@@ -25,6 +27,7 @@ const (
 
 type TaskType interface {
 	GetType() taskType
+	GetTimeout() time.Time
 }
 
 type TaskPriority interface {
@@ -33,6 +36,20 @@ type TaskPriority interface {
 
 func (t *taskType) GetType() taskType {
 	return *t
+}
+
+// if return nil, this taks is identified as an routine task
+func (t *taskType) GetTimeout() time.Duration {
+	switch t.GetType() {
+	case SHORT:
+		return constants.DefaultPeriodShort
+	case LONG:
+		return constants.DefaultPeriodLong
+	case PERMANENT:
+		return constants.DefaultPeriodPermanent
+	default:
+		return constants.DefaultPeriodPermanent
+	}
 }
 
 func (t *taskPriority) GetPriority() taskPriority {

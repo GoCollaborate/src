@@ -3,16 +3,16 @@ package remote
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/GoCollaborate/constants"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
+	"runtime"
 	"strconv"
 	"time"
 )
-
-const configPath = "./config.json"
 
 // current RPC port
 func Default() *Agent {
@@ -20,10 +20,13 @@ func Default() *Agent {
 }
 
 // local is the local config of server
-type Config struct {
-	Agents    []Agent `json:"agents,omitempty"`
-	TimeStamp int64   `json:"timestamp,omitempty"`
-	Local     Agent   `json:"local,omitempty"`
+type ContactBook struct {
+	Agents                 []Agent `json:"agents,omitempty"`
+	Local                  Agent   `json:"local,omitempty"`
+	Coordinator            Agent   `json:"coordinator,omitempty"`
+	ForbidPointToPointConn bool    `json:"forbidPointToPointConn,omitempty"`
+	IsCoordinator          bool    `json:"isCoordinator,omitempty"`
+	TimeStamp              int64   `json:"timestamp,omitempty"`
 }
 
 // agent is the network config of server
@@ -33,8 +36,8 @@ type Agent struct {
 	Alive bool   `json:"alive"`
 }
 
-func Populate(cfg *Config) error {
-	bytes, err := ioutil.ReadFile(configPath)
+func Populate(cfg *ContactBook) error {
+	bytes, err := ioutil.ReadFile(constants.DefaultContactBookPath)
 	if err != nil {
 		panic(err)
 	}
@@ -46,7 +49,7 @@ func Populate(cfg *Config) error {
 	return nil
 }
 
-func (c *Config) Load() (*Config, error) {
+func (c *ContactBook) Load() (*ContactBook, error) {
 	err := Populate(c)
 	if err != nil {
 		return c, err
@@ -86,44 +89,44 @@ func (c *Config) Load() (*Config, error) {
 	return c, nil
 }
 
-func (c *Config) RemoteLoad() (*Config, error) {
-	var localConfig *Config = new(Config)
-	err := Populate(localConfig)
+func (c *ContactBook) RemoteLoad() (*ContactBook, error) {
+	var localBook *ContactBook = new(ContactBook)
+	err := Populate(localBook)
 	if err != nil {
 		return c, err
 	}
 	var exist bool = false
 	var update bool = false
 
-	update = Compare(localConfig, c)
+	update = Compare(localBook, c)
 
 	for _, h := range c.Agents {
-		if h.IsEqualTo(&localConfig.Local) {
+		if h.IsEqualTo(&localBook.Local) {
 			exist = true
 		}
 	}
 	// update if not exist
 	if !exist {
 		c.Agents = append(c.Agents, c.Local)
-		localConfig.Agents = append(c.Agents, c.Local)
+		localBook.Agents = append(c.Agents, c.Local)
 		update = true
 	}
 	if update {
-		localConfig.Sync()
+		localBook.Sync()
 	}
 	return c, nil
 }
 
-func (c *Config) RemoteDisconnect() (*Config, error) {
-	var localConfig *Config = new(Config)
-	err := Populate(localConfig)
+func (c *ContactBook) RemoteDisconnect() (*ContactBook, error) {
+	var localBook *ContactBook = new(ContactBook)
+	err := Populate(localBook)
 	if err != nil {
 		return c, err
 	}
 	var index = -1
 	var update bool = false
 
-	update = Compare(localConfig, c)
+	update = Compare(localBook, c)
 
 	for i, h := range c.Agents {
 		if h.IsEqualTo(&c.Local) {
@@ -133,14 +136,14 @@ func (c *Config) RemoteDisconnect() (*Config, error) {
 	// update if not exist
 	if index < 0 {
 		c.Agents = append(c.Agents, c.Local)
-		localConfig.Agents = append(c.Agents, c.Local)
+		localBook.Agents = append(c.Agents, c.Local)
 		update = true
 	} else {
 		// deactivate if alive
 		if c.Agents[index].Alive {
 			c.Agents[index] = Agent{c.Agents[index].IP, c.Agents[index].Port, false}
 			c.Stamp()
-			for _, a := range localConfig.Agents {
+			for _, a := range localBook.Agents {
 				if a.IsEqualTo(&c.Agents[index]) {
 					a.Alive = false
 				}
@@ -149,21 +152,21 @@ func (c *Config) RemoteDisconnect() (*Config, error) {
 		}
 	}
 	if update {
-		localConfig.Sync()
+		localBook.Sync()
 	}
 	return c, nil
 }
 
-func (c *Config) RemoteTerminate() (*Config, error) {
-	var localConfig *Config = new(Config)
-	err := Populate(localConfig)
+func (c *ContactBook) RemoteTerminate() (*ContactBook, error) {
+	var localBook *ContactBook = new(ContactBook)
+	err := Populate(localBook)
 	if err != nil {
 		return c, err
 	}
 	var index int = -1
 	var update bool = false
 
-	for i, h := range localConfig.Agents {
+	for i, h := range localBook.Agents {
 		if h.IsEqualTo(&c.Local) {
 			index = i
 			update = true
@@ -171,7 +174,7 @@ func (c *Config) RemoteTerminate() (*Config, error) {
 	}
 	// update if exist
 	if index >= 0 {
-		localConfig.RemoveAgent(index)
+		localBook.RemoveAgent(index)
 		index = -1
 	}
 	for j, h := range c.Agents {
@@ -188,12 +191,12 @@ func (c *Config) RemoteTerminate() (*Config, error) {
 	fmt.Println(c)
 
 	if update {
-		localConfig.Sync()
+		localBook.Sync()
 	}
 	return c, nil
 }
 
-func (c *Config) Bridge() {
+func (c *ContactBook) Bridge() {
 	for _, e := range c.Agents {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
@@ -201,7 +204,7 @@ func (c *Config) Bridge() {
 				fmt.Println("Connection Failed While Bridging...")
 				continue
 			}
-			var u Config
+			var u ContactBook
 			err = client.Signal(c, &u)
 			if err != nil {
 				fmt.Println("Calling Method Failed While Bridging...")
@@ -212,7 +215,7 @@ func (c *Config) Bridge() {
 	}
 }
 
-func (c *Config) Disconnect() {
+func (c *ContactBook) Disconnect() {
 	for _, e := range c.Agents {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
@@ -220,7 +223,7 @@ func (c *Config) Disconnect() {
 				fmt.Println("Connection Failed While Disconnecting...")
 				continue
 			}
-			var u Config
+			var u ContactBook
 			err = client.Disconnect(c, &u)
 			if err != nil {
 				fmt.Println("Calling Method Failed While Disconnecting...")
@@ -231,7 +234,7 @@ func (c *Config) Disconnect() {
 	}
 }
 
-func (c *Config) Terminate() {
+func (c *ContactBook) Terminate() {
 	for _, e := range c.Agents {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
@@ -239,7 +242,7 @@ func (c *Config) Terminate() {
 				fmt.Println("Connection Failed While Terminating...")
 				continue
 			}
-			var u Config
+			var u ContactBook
 			err = client.Terminate(c, &u)
 			if err != nil {
 				fmt.Println("Calling Method Failed While Terminating...")
@@ -251,35 +254,35 @@ func (c *Config) Terminate() {
 }
 
 // Sync will also update TimeStamp
-func (c *Config) Sync() {
+func (c *ContactBook) Sync() {
 	c.TimeStamp = time.Now().Unix()
 	mal, err := json.Marshal(&c)
-	err = ioutil.WriteFile(configPath, mal, os.ModeExclusive)
+	err = ioutil.WriteFile(constants.DefaultContactBookPath, mal, os.ModeExclusive)
 	if err != nil {
 		panic(err)
 	}
 }
 
 // Update() does not update TimeStamp
-func (c *Config) Update(update *Config) (cfg *Config) {
+func (c *ContactBook) Update(update *ContactBook) (cfg *ContactBook) {
 	Compare(update, c)
 	return c
 }
 
-func (c *Config) WriteStream() {
+func (c *ContactBook) WriteStream() {
 	mal, err := json.Marshal(&c)
-	err = ioutil.WriteFile(configPath, mal, os.ModeExclusive)
+	err = ioutil.WriteFile(constants.DefaultContactBookPath, mal, os.ModeExclusive)
 	if err != nil {
 		fmt.Println(err)
 	}
 }
 
-func (c *Config) RemoveAgent(index int) *Config {
+func (c *ContactBook) RemoveAgent(index int) *ContactBook {
 	c.Agents = append(c.Agents[:(index)], c.Agents[(index+1):]...)
 	return c
 }
 
-func (c *Config) Stamp() *Config {
+func (c *ContactBook) Stamp() *ContactBook {
 	c.TimeStamp = time.Now().Unix()
 	return c
 }
@@ -314,7 +317,7 @@ func GetPort() int {
 	return l.Addr().(*net.TCPAddr).Port
 }
 
-func Compare(a *Config, b *Config) bool {
+func Compare(a *ContactBook, b *ContactBook) bool {
 	if a.TimeStamp < b.TimeStamp {
 		a.Agents = b.Agents
 		a.TimeStamp = b.TimeStamp
@@ -329,23 +332,32 @@ func RegisterRemote(server *rpc.Server, remote RemoteMethods) {
 	server.RegisterName("RemoteMethods", remote)
 }
 
-func (c *Config) LaunchServer() {
+func (c *ContactBook) LaunchServer() {
+	if !c.IsCoordinator {
+		go func() {
+			methods := new(LocalMethods)
+			server := rpc.NewServer()
+			RegisterRemote(server, methods)
+			server.HandleHTTP("/", "/debug")
+			l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Local.Port))
+			if e != nil {
+				fmt.Println("Listen Error:", e)
+			}
+			http.Serve(l, nil)
+		}()
+		return
+	}
 	go func() {
-		methods := new(LocalMethods)
-		server := rpc.NewServer()
-		RegisterRemote(server, methods)
-		server.HandleHTTP("/", "/debug")
-		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Local.Port))
-		if e != nil {
-			fmt.Println("Listen Error:", e)
-		}
-		http.Serve(l, nil)
+		fmt.Println("Launching as Coordinator...")
+		// initiate as RegCenter otherwise
+		regCenter := &RegCenter{time.Now().Unix(), time.Now().Unix(), map[string]Service{}, 8080, runtime.Version()}
+		regCenter.Listen()
 	}()
 }
 
 func LaunchClient(endpoint string, port int) (*RPCClient, error) {
-	clientConfig := Agent{endpoint, port, true}
-	client, err := rpc.DialHTTP("tcp", clientConfig.GetFullIP())
+	clientContact := Agent{endpoint, port, true}
+	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
 		fmt.Println("Dialing:", err)
 		return &RPCClient{}, err

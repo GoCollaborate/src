@@ -6,7 +6,7 @@ import (
 
 type LocalMethods int
 
-func (l *LocalMethods) Signal(arg *Config, update *Config) error {
+func (l *LocalMethods) Signal(arg *ContactBook, update *ContactBook) error {
 	fmt.Println("Signal Acquired!")
 	upd, err := arg.RemoteLoad()
 
@@ -20,7 +20,7 @@ func (l *LocalMethods) Signal(arg *Config, update *Config) error {
 	return nil
 }
 
-func (l *LocalMethods) Disconnect(arg *Config, update *Config) error {
+func (l *LocalMethods) Disconnect(arg *ContactBook, update *ContactBook) error {
 	fmt.Println("Disconnect:" + arg.Local.GetFullIP())
 	upd, err := arg.RemoteDisconnect()
 
@@ -35,7 +35,7 @@ func (l *LocalMethods) Disconnect(arg *Config, update *Config) error {
 	return nil
 }
 
-func (l *LocalMethods) Terminate(arg *Config, update *Config) error {
+func (l *LocalMethods) Terminate(arg *ContactBook, update *ContactBook) error {
 	fmt.Println("Terminate:" + arg.Local.GetFullIP())
 	upd, err := arg.RemoteTerminate()
 
