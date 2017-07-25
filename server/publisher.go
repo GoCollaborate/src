@@ -1,7 +1,7 @@
 package server
 
 import (
-	"github.com/GoCollaborate/logging"
+	"github.com/GoCollaborate/logger"
 	"time"
 )
 

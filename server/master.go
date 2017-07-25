@@ -2,7 +2,7 @@ package server
 
 import (
 	"errors"
-	"github.com/GoCollaborate/logging"
+	"github.com/GoCollaborate/logger"
 	"strconv"
 )
 

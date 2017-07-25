@@ -18,8 +18,16 @@ type Logger struct {
 	Internal *log.Logger
 }
 
-func NewLogger(filePath string, prefix string) (*Logger, *os.File) {
-	errorlog, err := os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+func NewLogger(filePath string, prefix string, clean ...bool) (*Logger, *os.File) {
+	var (
+		errorlog *os.File
+		err      error
+	)
+	if len(clean) > 0 && clean[0] {
+		errorlog, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0666)
+	} else {
+		errorlog, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	}
 	if err != nil {
 		errorlog, err = os.Create(filePath)
 	}

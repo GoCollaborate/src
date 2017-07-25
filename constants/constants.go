@@ -18,6 +18,8 @@ const (
 	DefaultLogPath         = "./history.log"
 	DefaultDataStorePath   = "./collaborate.dat"
 	DefaultLogPrefix       = "GoCollaborate/"
+	CleanHistory           = true
+	DefaultNotCleanHistory = false
 )
 
 // master/worker setting

@@ -14,6 +14,32 @@ import (
 	"time"
 )
 
+type BookKeeper struct {
+	Book ContactBook
+}
+
+func (bk *BookKeeper) LookAt(cb *ContactBook) {
+	bk.Book = *cb
+}
+
+func (bk *BookKeeper) Watch() {
+	bk.Book.Load()
+	bk.Book.LaunchServer()
+
+	// bridge to remote servers
+	bk.Book.Bridge()
+
+	/*
+		terminate the rpc connection at any time by calling Bridge() function
+	*/
+	// contactBook.Terminate()
+}
+
+func (bk *BookKeeper) LookAtAndWatch(cb *ContactBook) {
+	bk.LookAt(cb)
+	bk.Watch()
+}
+
 // current RPC port
 func Default() *Agent {
 	return &Agent{"localhost", GetPort(), true}

@@ -2,7 +2,7 @@ package server
 
 import (
 	"fmt"
-	"github.com/GoCollaborate/logging"
+	"github.com/GoCollaborate/logger"
 )
 
 type Element interface {
