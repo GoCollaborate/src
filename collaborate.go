@@ -6,7 +6,6 @@ import (
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote"
 	"github.com/GoCollaborate/server"
-	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"net/http"
 	"os"
@@ -30,8 +29,7 @@ func main() {
 	default:
 		localLogger, logFile = logger.NewLogger(sysvars.LogPath, constants.DefaultLogPrefix, true)
 	}
-
-	// initialise server
+	// set handler for router
 	router := mux.NewRouter()
 	switch sysvars.ServerMode {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
@@ -47,24 +45,19 @@ func main() {
 		// pbls.Connect(mst)
 		mst.BatchAttach(sysvars.MaxRoutines)
 		mst.LaunchAll()
-		router.HandleFunc("/", index)
-		serv := &http.Server{
-			Addr:        ":" + strconv.Itoa(sysvars.Port),
-			Handler:     router,
-			ReadTimeout: constants.DefaultReadTimeout,
-		}
-		err := serv.ListenAndServe()
-		localLogger.LogError(err.Error())
-		logFile.Close()
+		bkp.Handle(router)
 	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		regCenter := remote.NewRegCenter(sysvars.Port)
-		regCenter.Listen()
+		regCenter := remote.NewRegCenter(sysvars.Port, localLogger)
+		regCenter.Handle(router)
 	}
-	if sysvars.DebugMode {
-		utils.AdaptRouterToDebugMode(router)
-	}
-}
 
-func index(w http.ResponseWriter, r *http.Request) {
-	pbls.Distribute()
+	// launch server
+	serv := &http.Server{
+		Addr:        ":" + strconv.Itoa(sysvars.Port),
+		Handler:     router,
+		ReadTimeout: constants.DefaultReadTimeout,
+	}
+	err := serv.ListenAndServe()
+	localLogger.LogError(err.Error())
+	logFile.Close()
 }

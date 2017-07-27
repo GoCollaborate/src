@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GoCollaborate/constants"
+	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
 	"os"
-	"runtime"
 	"strconv"
 	"time"
 )
@@ -38,6 +38,11 @@ func (bk *BookKeeper) Watch() {
 func (bk *BookKeeper) LookAtAndWatch(cb *ContactBook) {
 	bk.LookAt(cb)
 	bk.Watch()
+}
+
+func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
+	router.HandleFunc("/", handlerFuncBookKeeperEntry)
+	return router
 }
 
 // current RPC port
@@ -359,26 +364,18 @@ func RegisterRemote(server *rpc.Server, remote RemoteMethods) {
 }
 
 func (c *ContactBook) LaunchServer() {
-	if !c.IsCoordinator {
-		go func() {
-			methods := new(LocalMethods)
-			server := rpc.NewServer()
-			RegisterRemote(server, methods)
-			server.HandleHTTP("/", "/debug")
-			l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Local.Port))
-			if e != nil {
-				fmt.Println("Listen Error:", e)
-			}
-			http.Serve(l, nil)
-		}()
-		return
-	}
 	go func() {
-		fmt.Println("Launching as Coordinator...")
-		// initiate as RegCenter otherwise
-		regCenter := &RegCenter{time.Now().Unix(), time.Now().Unix(), map[string]Service{}, 8080, runtime.Version()}
-		regCenter.Listen()
+		methods := new(LocalMethods)
+		server := rpc.NewServer()
+		RegisterRemote(server, methods)
+		server.HandleHTTP("/", "/debug")
+		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Local.Port))
+		if e != nil {
+			fmt.Println("Listen Error:", e)
+		}
+		http.Serve(l, nil)
 	}()
+	return
 }
 
 func LaunchClient(endpoint string, port int) (*RPCClient, error) {
@@ -398,4 +395,8 @@ func (c *Agent) GetFullIP() string {
 
 func (c *Agent) IsEqualTo(another *Agent) bool {
 	return c.GetFullIP() == another.GetFullIP()
+}
+
+func handlerFuncBookKeeperEntry(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("Bookkeeper Println...")
 }

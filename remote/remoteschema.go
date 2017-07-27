@@ -1,6 +1,7 @@
 package remote
 
 import (
+	"encoding/json"
 	"github.com/GoCollaborate/constants"
 )
 
@@ -9,51 +10,114 @@ type Parameterizable interface {
 	Raw() interface{}
 }
 
-type Argument struct {
-	DataType    string
-	Description string
-	Constraints []Constraint
-	Required    bool
-	Value       interface{}
+type Parameter struct {
+	Type        string       `json:"type"`
+	Description string       `json:"description"`
+	Constraints []Constraint `json:"constraints"`
+	Required    bool         `json:"required"`
 }
 
 type Constraint struct {
-	Key   string
-	Value interface{}
+	Key   string      `json:"key"`
+	Value interface{} `json:"value"`
 }
 
-func (arg *Argument) SerializeToJSON() string {
-	return ""
+func (arg *Parameter) SerializeToJSON() string {
+	mal, err := json.Marshal(*arg)
+	if err != nil {
+		// log here
+	}
+	return string(mal)
 }
 
-func (arg *Argument) Raw() interface{} {
+func (arg *Parameter) Raw() interface{} {
 	return nil
 }
 
-func DefaultArgString(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeString, "Remote Argument Type: String", []Constraint{}, false, val}
+func DefaultArgString(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeString, "Remote Argument Type: String", []Constraint{}, false}
 }
 
-func DefaultArgNumber(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeNumber, "Remote Argument Type: Number", []Constraint{}, false, val}
+func DefaultArgNumber(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeNumber, "Remote Argument Type: Number", []Constraint{}, false}
 }
 
-func DefaultArgInteger(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeInteger, "Remote Argument Type: Integer", []Constraint{}, false, val}
+func DefaultArgInteger(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeInteger, "Remote Argument Type: Integer", []Constraint{}, false}
 }
 
-func DefaultArgObject(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeObject, "Remote Argument Type: Object", []Constraint{}, false, val}
+func DefaultArgObject(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeObject, "Remote Argument Type: Object", []Constraint{}, false}
 }
 
-func DefaultArgBoolean(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeBoolean, "Remote Argument Type: Boolean", []Constraint{}, false, val}
+func DefaultArgBoolean(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeBoolean, "Remote Argument Type: Boolean", []Constraint{}, false}
 }
 
-func DefaultArgArray(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeArray, "Remote Argument Type: Array", []Constraint{}, false, val}
+func DefaultArgArray(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeArray, "Remote Argument Type: Array", []Constraint{}, false}
 }
 
-func DefaultArgNull(val interface{}) *Argument {
-	return &Argument{constants.ArgTypeNull, "Remote Argument Type: Null", []Constraint{}, false, val}
+func DefaultArgNull(val interface{}) *Parameter {
+	return &Parameter{constants.ArgTypeNull, "Remote Argument Type: Null", []Constraint{}, false}
+}
+
+func DefaultConstraintMinimum(val float64) Constraint {
+	return Constraint{"minimum", val}
+}
+
+func DefaultConstraintXMinimum(val float64) Constraint {
+	return Constraint{"exclusiveMinimum", val}
+}
+
+func DefaultConstraintMaximum(val float64) Constraint {
+	return Constraint{"maximum", val}
+}
+
+func DefaultConstraintXMaximum(val float64) Constraint {
+	return Constraint{"exclusiveMaximum", val}
+}
+
+func DefaultConstraintMaxLength(l uint64) Constraint {
+	return Constraint{"maxLength", l}
+}
+
+func DefaultConstraintMinLength(l uint64) Constraint {
+	return Constraint{"minLength", l}
+}
+
+func DefaultConstraintPattern(pt string) Constraint {
+	return Constraint{"pattern", pt}
+}
+
+func DefaultConstraintMaxItems(it uint64) Constraint {
+	return Constraint{"maxItems", it}
+}
+
+func DefaultConstraintMinItems(it uint64) Constraint {
+	return Constraint{"minItems", it}
+}
+
+func DefaultConstraintUniqueItems(uniq bool) Constraint {
+	return Constraint{"uniqueItems", uniq}
+}
+
+func DefaultConstraintMaxProperties(mp uint64) Constraint {
+	return Constraint{"maxProperties", mp}
+}
+
+func DefaultConstraintMinProperties(mp uint64) Constraint {
+	return Constraint{"minProperties", mp}
+}
+
+func DefaultConstraintArrayAllOf(ins interface{}) Constraint {
+	return Constraint{"allOf", ins}
+}
+
+func DefaultConstraintArrayAnyOf(ins interface{}) Constraint {
+	return Constraint{"anyOf", ins}
+}
+
+func DefaultConstraintArrayOneOf(ins interface{}) Constraint {
+	return Constraint{"oneOf", ins}
 }

@@ -65,4 +65,26 @@ var (
 	ErrAPIError           = errors.New("GoCollaborate: api error")
 	ErrNoCollaborator     = errors.New("GoCollaborate: collaborator does not exist")
 	ErrCollaboratorExists = errors.New("GoCollaborate: collaborator already exists")
+	ErrNoService          = errors.New("GoCollaborate: service of id does not exist")
+	ErrConflictService    = errors.New("GoCollaborate: found conflict, service of id alreadt existed")
+)
+
+type Header struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
+}
+
+// header
+var (
+	Header200OK        = Header{"200", "OK"}
+	Header202Accepted  = Header{"202", "Accepted"}
+	Header204NoContent = Header{"204", "NoContent"}
+	Header403Forbidden = Header{"403", "Forbidden"}
+	Header404NotFound  = Header{"404", "NotFound"}
+	Header409Conflict  = Header{"409", "Conflict"}
+)
+
+// restful
+const (
+	JSONAPIVersion = `{"version":"1.0"}`
 )

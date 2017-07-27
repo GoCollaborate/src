@@ -1,7 +1,9 @@
 package utils
 
 import (
+	"github.com/GoCollaborate/constants"
 	"github.com/gorilla/mux"
+	"net/http"
 	"net/http/pprof"
 )
 
@@ -16,4 +18,10 @@ func AdaptRouterToDebugMode(router *mux.Router) *mux.Router {
 	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	router.Handle("/debug/pprof/block", pprof.Handler("block"))
 	return router
+}
+
+func AdaptHTTPWithHeader(w http.ResponseWriter,
+	header constants.Header) http.ResponseWriter {
+	w.Header().Add(header.Key, header.Value)
+	return w
 }
