@@ -37,7 +37,7 @@ func (rc *RegCenter) Handle(router *mux.Router) *mux.Router {
 	return router
 }
 
-// must be validated before request passed in
+// post
 func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, error) {
 	// parse request json and create service here
 	payload := restful.Decode(js)
@@ -50,7 +50,11 @@ func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, er
 				dat.Attributes["subscribers"].([]string),
 				dat.Attributes["dependencies"].([]string),
 				dat.Attributes["mode"].(mode),
-				dat.Attributes["load_balance_mode"].(mode), "", time.Now().Unix()}
+				dat.Attributes["load_balance_mode"].(mode),
+				dat.Attributes["version"].(string),
+				dat.Attributes["platform_version"].(string),
+				"",
+				time.Now().Unix()}
 			rc.Services[id] = &svrs
 			dat.ID = id
 		}
@@ -65,24 +69,76 @@ func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, er
 	return rtjs, nil
 }
 
-func (rc *RegCenter) RegisterService() (string, error) {
-	return "", nil
+// post
+func (rc *RegCenter) RegisterService(w http.ResponseWriter, js string) (string, error) {
+	payload := restful.Decode(js)
+	for _, dat := range payload.Data {
+		if dat.Type == "service" {
+			agent := dat.Attributes["agent"].(Agent)
+			sid := dat.Attributes["serviceid"].(string)
+			err := rc.Services[sid].Register(&agent)
+			if err != nil {
+				errPayload := restful.Error404NotFound()
+				mal, er := json.Marshal(errPayload)
+				if er != nil {
+					return "", er
+				}
+				utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+				rtjs := string(mal)
+				io.WriteString(w, rtjs)
+				return sid, err
+			}
+		}
+	}
+	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+	rtjs := string("")
+	io.WriteString(w, rtjs)
+	return rtjs, nil
 }
 
-func (rc *RegCenter) SubscribeService(srvID string) (string, error) {
+// post
+func (rc *RegCenter) SubscribeService(w http.ResponseWriter, srvID string) (string, error) {
 	var tk string
 	if _, ok := rc.Services[srvID]; ok {
 		tk = utils.RandStringBytesMaskImprSrc(RPCTokenLength)
-		rc.Services[srvID].SbscrbList = append(rc.Services[srvID].SbscrbList, tk)
+		err := rc.Services[srvID].Subscribe(tk)
+		if err != nil {
+			errPayload := restful.Error409Conflict()
+			mal, er := json.Marshal(errPayload)
+			if er != nil {
+				return "", er
+			}
+			utils.AdaptHTTPWithHeader(w, constants.Header409Conflict)
+			rtjs := string(mal)
+			io.WriteString(w, rtjs)
+			return tk, err
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+		rtjs := string("")
+		io.WriteString(w, rtjs)
 		return tk, nil
 	}
 	return tk, constants.ErrNoService
 }
 
-func (rc *RegCenter) DeleteService(srvID string) (string, error) {
+// delete
+func (rc *RegCenter) DeleteService(w http.ResponseWriter, srvID string) (string, error) {
 	return "", nil
 }
 
+// delete
+func (rc *RegCenter) DeRegisterService(w http.ResponseWriter, js string) (string, error) {
+	// js comprises service id and agent
+	return "", nil
+}
+
+// delete
+func (rc *RegCenter) UnSubscribeService(w http.ResponseWriter, js string) (string, error) {
+	// js comprises service id and token
+	return "", nil
+}
+
+// put
 func (rc *RegCenter) AlterServiceMode(srvID string, md mode) (string, error) {
 	return "", nil
 }

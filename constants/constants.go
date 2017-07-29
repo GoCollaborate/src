@@ -66,7 +66,11 @@ var (
 	ErrNoCollaborator     = errors.New("GoCollaborate: collaborator does not exist")
 	ErrCollaboratorExists = errors.New("GoCollaborate: collaborator already exists")
 	ErrNoService          = errors.New("GoCollaborate: service of id does not exist")
-	ErrConflictService    = errors.New("GoCollaborate: found conflict, service of id alreadt existed")
+	ErrConflictService    = errors.New("GoCollaborate: found conflict, service of id already exists")
+	ErrNoRegister         = errors.New("GoCollaborate: register does not exist")
+	ErrConflictRegister   = errors.New("GoCollaborate: found conflict, provider of the service already exists")
+	ErrNoSubscriber       = errors.New("GoCollaborate: subscriber does not exist")
+	ErrConflictSubscriber = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
 )
 
 type Header struct {
