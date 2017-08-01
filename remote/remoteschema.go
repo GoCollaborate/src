@@ -121,3 +121,30 @@ func DefaultConstraintArrayAnyOf(ins interface{}) Constraint {
 func DefaultConstraintArrayOneOf(ins interface{}) Constraint {
 	return Constraint{"oneOf", ins}
 }
+
+func UnmarshalParameters(original []interface{}) []Parameter {
+	var parameters []Parameter
+	for _, o := range original {
+		oo := o.(map[string]interface{})
+		parameters = append(parameters, Parameter{oo["type"].(string), oo["description"].(string), UnmarshalConstraints(oo["constraints"].([]interface{})), oo["required"].(bool)})
+	}
+	return parameters
+}
+
+func UnmarshalConstraints(original []interface{}) []Constraint {
+	var constraints []Constraint
+	for _, o := range original {
+		oo := o.(map[string]interface{})
+		constraints = append(constraints, Constraint{oo["key"].(string), oo["value"]})
+	}
+	return constraints
+}
+
+func UnmarshalStringArray(original []interface{}) []string {
+	var strings []string
+	for _, o := range original {
+		oo := o.(string)
+		strings = append(strings, oo)
+	}
+	return strings
+}

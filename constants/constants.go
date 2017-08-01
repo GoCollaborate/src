@@ -81,6 +81,7 @@ type Header struct {
 // header
 var (
 	Header200OK        = Header{"200", "OK"}
+	Header201Created   = Header{"201", "Created"}
 	Header202Accepted  = Header{"202", "Accepted"}
 	Header204NoContent = Header{"204", "NoContent"}
 	Header403Forbidden = Header{"403", "Forbidden"}

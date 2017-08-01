@@ -7,7 +7,6 @@ import (
 // remote settings
 const (
 	RPCServerModeNormal                 mode = iota
-	RPCServerModeRegCenter                   // turn RPC server of this mode to RegCenter
 	RPCServerModeOnlyRegister                // collaborator only registers service, service is not accessible until it has been changed to RPCServerModeNormal
 	RPCServerModeStatic                      // coordinating agent will not automatically manage this server
 	RPCServerModeRandomLoadBalance           // assign tasks as per weighted probability
@@ -23,8 +22,8 @@ type Service struct {
 	RegList          []Agent     `json:"registers"`
 	SbscrbList       []string    `json:"subscribers"`  // subscriber tokens
 	Dependencies     []string    `json:"dependencies"` // dependent ServiceIDs
-	Mode             mode        `json:"mode"`
-	LoadBalanceMode  mode        `json:"load_balance_mode"`
+	Mode             mode        `json:"mode,omitempty"`
+	LoadBalanceMode  mode        `json:"load_balance_mode,omitemtpy"`
 	Version          string      `json:"version"`
 	PlatformVersion  string      `json:"platform_version"`
 	LastAssignedTo   string      `json:"last_assigned_to"`
@@ -106,4 +105,29 @@ func (s *Service) UnSubscribe(token string) error {
 		}
 	}
 	return constants.ErrNoSubscriber
+}
+
+func UnmarshalMode(original interface{}) mode {
+	if original == nil {
+		return RPCServerModeNormal
+	}
+	var m mode
+	omode := original.(string)
+	switch omode {
+	case "RPCServerModeOnlyRegister":
+		m = RPCServerModeOnlyRegister
+	case "RPCServerModeStatic":
+		m = RPCServerModeStatic
+	case "RPCServerModeRandomLoadBalance":
+		m = RPCServerModeRandomLoadBalance
+	case "RPCServerModeLeastActiveLoadBalance":
+		m = RPCServerModeLeastActiveLoadBalance
+	case "RPCClientModeOnlySubscribe":
+		m = RPCClientModeOnlySubscribe
+	case "RPCClientModePointToPoint":
+		m = RPCClientModePointToPoint
+	default:
+		m = RPCServerModeNormal
+	}
+	return m
 }

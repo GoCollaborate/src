@@ -8,6 +8,7 @@ import (
 	"github.com/GoCollaborate/server"
 	"github.com/gorilla/mux"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"strconv"
 	"time"
@@ -31,6 +32,20 @@ func main() {
 	}
 	// set handler for router
 	router := mux.NewRouter()
+	switch sysvars.DebugMode {
+	case true:
+		router.HandleFunc("/debug/pprof/", pprof.Index)
+		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+
+		router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+		router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+		router.Handle("/debug/pprof/block", pprof.Handler("block"))
+	default:
+	}
+
 	switch sysvars.ServerMode {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
 		// create book keeper
@@ -47,7 +62,7 @@ func main() {
 		mst.LaunchAll()
 		bkp.Handle(router)
 	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		regCenter := remote.NewRegCenter(sysvars.Port, localLogger)
+		regCenter := remote.GetRegCenterInstance(sysvars.Port, localLogger)
 		regCenter.Handle(router)
 	}
 

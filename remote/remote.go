@@ -397,6 +397,15 @@ func (c *Agent) IsEqualTo(another *Agent) bool {
 	return c.GetFullIP() == another.GetFullIP()
 }
 
+func UnmarshalAgents(original []interface{}) []Agent {
+	var agents []Agent
+	for _, o := range original {
+		oo := o.(map[string]interface{})
+		agents = append(agents, Agent{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool)})
+	}
+	return agents
+}
+
 func handlerFuncBookKeeperEntry(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("Bookkeeper Println...")
 }
