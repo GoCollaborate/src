@@ -6,9 +6,9 @@ import (
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote"
 	"github.com/GoCollaborate/server"
+	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"net/http"
-	"net/http/pprof"
 	"os"
 	"strconv"
 	"time"
@@ -34,15 +34,7 @@ func main() {
 	router := mux.NewRouter()
 	switch sysvars.DebugMode {
 	case true:
-		router.HandleFunc("/debug/pprof/", pprof.Index)
-		router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		router.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-
-		router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
-		router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-		router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
-		router.Handle("/debug/pprof/block", pprof.Handler("block"))
+		router = utils.AdaptRouterToDebugMode(router)
 	default:
 	}
 
