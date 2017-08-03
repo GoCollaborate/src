@@ -17,8 +17,8 @@ type DataModel struct {
 	Body    []string
 }
 
-var templates = template.Must(template.ParseFiles(makePath("index.html"), makePath("about.html")))
-var validPath = regexp.MustCompile("^/(index|about)*$")
+var templates = template.Must(template.ParseFiles(makePath("index.html")))
+var validPath = regexp.MustCompile("^/(index)*$")
 
 func Index(w http.ResponseWriter, r *http.Request) {
 	m := validPath.FindStringSubmatch(r.URL.Path)
@@ -28,10 +28,6 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 	renderTemplate(w, "index")
 	return
-}
-
-func About(w http.ResponseWriter, r *http.Request) {
-	renderTemplate(w, "about")
 }
 
 func renderTemplate(w http.ResponseWriter, tmpl string) {
@@ -48,24 +44,12 @@ func makePath(path string) string {
 
 func serveResource(w http.ResponseWriter, req *http.Request) {
 	path := "./static" + req.URL.Path
-	// var contentType string
-	// if strings.HasSuffix(path, ".css") {
-	// 	contentType = "text/css"
-	// } else if strings.HasSuffix(path, ".png") {
-	// 	contentType = "image/png"
-	// } else if strings.HasSuffix(path, ".jpg") {
-	// 	contentType = "image/jpeg"
-	// } else {
-	// 	contentType = "text/plain"
-	// }
 
 	f, err := os.Open(path)
 	if err != nil {
 		w.WriteHeader(404)
 	} else {
 		defer f.Close()
-		//w.Header().Add("Content Type", contentType)
-
 		br := bufio.NewReader(f)
 		br.WriteTo(w)
 	}

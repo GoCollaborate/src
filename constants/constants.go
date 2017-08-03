@@ -40,21 +40,29 @@ var (
 
 // communication types
 const (
-	ArgTypeInteger          = "integer"
-	ArgTypeNumber           = "number"
-	ArgTypeString           = "string"
-	ArgTypeObject           = "object"
-	ArgTypeBoolean          = "boolean"
-	ArgTypeNull             = "null"
-	ArgTypeArray            = "array"
-	ConstraintTypeMax       = "maximum"
-	ConstraintTypeMin       = "minimum"
-	ConstraintTypeMaxLength = "maxLength"
-	ConstraintTypeMinLength = "minLength"
-	ConstraintTypePattern   = "pattern"
-	ConstraintTypeMaxItems  = "maxItems"
-	ConstraintTypeMinItems  = "minItems"
-	ConstraintTypeEnum      = "enum" // value of interface{} should accept a slice
+	ArgTypeInteger              = "integer"
+	ArgTypeNumber               = "number"
+	ArgTypeString               = "string"
+	ArgTypeObject               = "object"
+	ArgTypeBoolean              = "boolean"
+	ArgTypeNull                 = "null"
+	ArgTypeArray                = "array"
+	ConstraintTypeMax           = "maximum"
+	ConstraintTypeMin           = "minimum"
+	ConstraintTypeXMin          = "exclusiveMinimum"
+	ConstraintTypeXMax          = "exclusiveMaximum"
+	ConstraintTypeUniqueItems   = "uniqueItems"
+	ConstraintTypeMaxProperties = "maxProperties"
+	ConstraintTypeMinProperties = "minProperties"
+	ConstraintTypeMaxLength     = "maxLength"
+	ConstraintTypeMinLength     = "minLength"
+	ConstraintTypePattern       = "pattern"
+	ConstraintTypeMaxItems      = "maxItems"
+	ConstraintTypeMinItems      = "minItems"
+	ConstraintTypeEnum          = "enum" // value of interface{} should accept a slice
+	ConstraintTypeAllOf         = "allOf"
+	ConstraintTypeAnyOf         = "anyOf"
+	ConstraintTypeOneOf         = "oneOf"
 )
 
 // errors

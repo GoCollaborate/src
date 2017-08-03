@@ -30,7 +30,7 @@ func (bk *BookKeeper) Watch() {
 	bk.Book.Bridge()
 
 	/*
-		terminate the rpc connection at any time by calling Bridge() function
+		terminate the rpc connection at any time by calling Terminate() function
 	*/
 	// contactBook.Terminate()
 }

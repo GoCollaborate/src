@@ -49,9 +49,13 @@ func (rc *RegCenter) Handle(router *mux.Router) *mux.Router {
 	router.HandleFunc("/", web.Index).Methods("GET")
 	router.HandleFunc("/index", web.Index).Methods("GET")
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	router.HandleFunc("/about", web.About).Methods("GET")
 	router.HandleFunc("/services", handlerFuncGetServices).Methods("GET")
 	router.HandleFunc("/services/{srvid}", handlerFuncGetService).Methods("GET")
+	// todo: service specific api entry e.g. /services/{srvid}/registry, no id field required
+	router.HandleFunc("/services/registry", handlerFuncRegisterService).Methods("POST")
+	router.HandleFunc("/services/subscription", handlerFuncSubscribeService).Methods("POST")
+	router.HandleFunc("/services/registry", handlerFuncDeRegisterService).Methods("DELETE")
+	router.HandleFunc("/services/subscription", handlerFuncUnSubscribeService).Methods("DELETE")
 	router.HandleFunc("/services", handlerFuncPostServices).Methods("POST")
 	rc.Dump()
 	return router
@@ -61,6 +65,7 @@ func (rc *RegCenter) Handle(router *mux.Router) *mux.Router {
 func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, error) {
 	// parse request json and create service here
 	payload := restful.Decode(js)
+	var resData []restful.Resource
 	for _, dat := range payload.Data {
 		if dat.Type == "service" {
 			id := utils.RandStringBytesMaskImprSrc(RPCServiceLength)
@@ -77,8 +82,10 @@ func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, er
 				time.Now().Unix()}
 			rc.Services[id] = &svrs
 			dat.ID = id
+			resData = append(resData, dat)
 		}
 	}
+	payload.Data = resData
 	mal, err := json.Marshal(payload)
 	if err != nil {
 		return "", err
@@ -93,7 +100,7 @@ func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, er
 func (rc *RegCenter) RegisterService(w http.ResponseWriter, js string) (string, error) {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
-		if dat.Type == "register" {
+		if dat.Type == "registry" {
 			agents := UnmarshalAgents(dat.Attributes["agents"].([]interface{}))
 			srvID := dat.ID
 			if _, ok := rc.Services[srvID]; !ok {
@@ -123,8 +130,12 @@ func (rc *RegCenter) RegisterService(w http.ResponseWriter, js string) (string, 
 			}
 		}
 	}
+	mal, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string("")
+	rtjs := string(mal)
 	io.WriteString(w, rtjs)
 	return rtjs, nil
 }
@@ -149,6 +160,9 @@ func (rc *RegCenter) SubscribeService(w http.ResponseWriter, js string) (string,
 					rtjs := string(mal)
 					io.WriteString(w, rtjs)
 					return tk, err
+				}
+				if dat.Attributes == nil {
+					dat.Attributes = map[string]interface{}{}
 				}
 				dat.Attributes["token"] = tk
 				tks = append(tks, dat)
@@ -197,7 +211,7 @@ func (rc *RegCenter) DeRegisterService(w http.ResponseWriter, js string) (string
 	// js comprises service id and agent
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
-		if dat.Type == "register" {
+		if dat.Type == "registry" {
 			agents := UnmarshalAgents(dat.Attributes["agents"].([]interface{}))
 			srvID := dat.ID
 			if _, ok := rc.Services[srvID]; !ok {
@@ -227,8 +241,12 @@ func (rc *RegCenter) DeRegisterService(w http.ResponseWriter, js string) (string
 			}
 		}
 	}
+	mal, err := json.Marshal(payload)
+	if err != nil {
+		return "", err
+	}
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string("")
+	rtjs := string(mal)
 	io.WriteString(w, rtjs)
 	return rtjs, nil
 }
@@ -434,6 +452,78 @@ func handlerFuncPostServices(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	center.CreateService(w, string(bytes))
+	return
+}
+
+// POST
+func handlerFuncRegisterService(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errPayload := restful.Error404NotFound()
+		mal, err := json.Marshal(errPayload)
+		if err != nil {
+			return
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+		rtjs := string(mal)
+		io.WriteString(w, rtjs)
+		return
+	}
+	center.RegisterService(w, string(bytes))
+	return
+}
+
+// POST
+func handlerFuncSubscribeService(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errPayload := restful.Error404NotFound()
+		mal, err := json.Marshal(errPayload)
+		if err != nil {
+			return
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+		rtjs := string(mal)
+		io.WriteString(w, rtjs)
+		return
+	}
+	center.SubscribeService(w, string(bytes))
+	return
+}
+
+// DELETE
+func handlerFuncDeRegisterService(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errPayload := restful.Error404NotFound()
+		mal, err := json.Marshal(errPayload)
+		if err != nil {
+			return
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+		rtjs := string(mal)
+		io.WriteString(w, rtjs)
+		return
+	}
+	center.DeRegisterService(w, string(bytes))
+	return
+}
+
+// DELETE
+func handlerFuncUnSubscribeService(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errPayload := restful.Error404NotFound()
+		mal, err := json.Marshal(errPayload)
+		if err != nil {
+			return
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+		rtjs := string(mal)
+		io.WriteString(w, rtjs)
+		return
+	}
+	center.UnSubscribeService(w, string(bytes))
 	return
 }
 

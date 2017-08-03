@@ -20,9 +20,13 @@ type ErrorSource struct {
 
 // create specific Error Types Below
 func Error409Conflict() ErrorPayload {
-	return ErrorPayload{"add_your_api_route_here", []Error{Error{"409", ErrorSource{"add_your_error_source_here"}, "add_your_error_title_here", "add_your_error_detail_here"}}}
+	return ErrorPayload{"add_your_custom_api_route_here", []Error{Error{"409", ErrorSource{"add_your_custom_error_source_here"}, "add_your_custom_error_title_here", "add_your_custom_error_detail_here"}}}
 }
 
 func Error404NotFound() ErrorPayload {
-	return ErrorPayload{"add_your_api_route_here", []Error{Error{"404", ErrorSource{"add_your_error_source_here"}, "add_your_error_title_here", "add_your_error_detail_here"}}}
+	return ErrorPayload{"add_your_custom_api_route_here", []Error{Error{"404", ErrorSource{"add_your_custom_error_source_here"}, "add_your_custom_error_title_here", "add_your_custom_error_detail_here"}}}
+}
+
+func Error403Forbidden() ErrorPayload {
+	return ErrorPayload{"add_your_custom_api_route_here", []Error{Error{"403", ErrorSource{"add_your_custom_error_source_here"}, "add_your_custom_error_title_here", "add_your_custom_error_detail_here"}}}
 }

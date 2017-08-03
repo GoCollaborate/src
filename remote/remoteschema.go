@@ -3,11 +3,13 @@ package remote
 import (
 	"encoding/json"
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/restful"
 )
 
 type Parameterizable interface {
 	SerializeToJSON() string
-	Raw() interface{}
+	Validate() bool
 }
 
 type Parameter struct {
@@ -22,16 +24,69 @@ type Constraint struct {
 	Value interface{} `json:"value"`
 }
 
-func (arg *Parameter) SerializeToJSON() string {
-	mal, err := json.Marshal(*arg)
+func (par *Parameter) SerializeToJSON() string {
+	mal, err := json.Marshal(*par)
 	if err != nil {
-		// log here
+		logger.LogWarning("Internal error during serialization: " + err.Error())
 	}
 	return string(mal)
 }
 
-func (arg *Parameter) Raw() interface{} {
-	return nil
+func (par *Parameter) Validate(dat *restful.Resource) bool {
+	if par.Required && dat == nil {
+		return false
+	}
+	if par.Type != dat.Type {
+		return false
+	}
+	switch par.Type {
+	case constants.ArgTypeInteger, constants.ArgTypeNumber:
+		for _, cons := range par.Constraints {
+			switch cons.Key {
+			case constants.ConstraintTypeMax:
+			case constants.ConstraintTypeMin:
+			case constants.ConstraintTypeEnum:
+			default:
+				return false
+			}
+		}
+	case constants.ArgTypeString:
+		for _, cons := range par.Constraints {
+			switch cons.Key {
+			case constants.ConstraintTypeMaxLength:
+			case constants.ConstraintTypeMinLength:
+			case constants.ConstraintTypePattern:
+			case constants.ConstraintTypeEnum:
+			default:
+				return false
+			}
+		}
+	case constants.ArgTypeArray:
+		for _, cons := range par.Constraints {
+			switch cons.Key {
+			case constants.ConstraintTypeMaxItems:
+			case constants.ConstraintTypeMinItems:
+			case constants.ConstraintTypeUniqueItems:
+			case constants.ConstraintTypeAllOf:
+			case constants.ConstraintTypeOneOf:
+			case constants.ConstraintTypeAnyOf:
+			default:
+				return false
+			}
+		}
+	case constants.ArgTypeObject:
+		for _, cons := range par.Constraints {
+			switch cons.Key {
+			case constants.ConstraintTypeMaxProperties:
+			case constants.ConstraintTypeMinProperties:
+			default:
+				return false
+			}
+		}
+	default:
+		return false
+	}
+	return true
 }
 
 func DefaultArgString(val interface{}) *Parameter {
@@ -63,63 +118,63 @@ func DefaultArgNull(val interface{}) *Parameter {
 }
 
 func DefaultConstraintMinimum(val float64) Constraint {
-	return Constraint{"minimum", val}
+	return Constraint{constants.ConstraintTypeMin, val}
 }
 
 func DefaultConstraintXMinimum(val float64) Constraint {
-	return Constraint{"exclusiveMinimum", val}
+	return Constraint{constants.ConstraintTypeXMin, val}
 }
 
 func DefaultConstraintMaximum(val float64) Constraint {
-	return Constraint{"maximum", val}
+	return Constraint{constants.ConstraintTypeMax, val}
 }
 
 func DefaultConstraintXMaximum(val float64) Constraint {
-	return Constraint{"exclusiveMaximum", val}
+	return Constraint{constants.ConstraintTypeXMax, val}
 }
 
 func DefaultConstraintMaxLength(l uint64) Constraint {
-	return Constraint{"maxLength", l}
+	return Constraint{constants.ConstraintTypeMaxLength, l}
 }
 
 func DefaultConstraintMinLength(l uint64) Constraint {
-	return Constraint{"minLength", l}
+	return Constraint{constants.ConstraintTypeMinLength, l}
 }
 
 func DefaultConstraintPattern(pt string) Constraint {
-	return Constraint{"pattern", pt}
+	return Constraint{constants.ConstraintTypePattern, pt}
 }
 
 func DefaultConstraintMaxItems(it uint64) Constraint {
-	return Constraint{"maxItems", it}
+	return Constraint{constants.ConstraintTypeMaxItems, it}
 }
 
 func DefaultConstraintMinItems(it uint64) Constraint {
-	return Constraint{"minItems", it}
+	return Constraint{constants.ConstraintTypeMinItems, it}
 }
 
 func DefaultConstraintUniqueItems(uniq bool) Constraint {
-	return Constraint{"uniqueItems", uniq}
+	return Constraint{constants.ConstraintTypeUniqueItems, uniq}
 }
 
 func DefaultConstraintMaxProperties(mp uint64) Constraint {
-	return Constraint{"maxProperties", mp}
+	return Constraint{constants.ConstraintTypeMaxProperties, mp}
 }
 
 func DefaultConstraintMinProperties(mp uint64) Constraint {
-	return Constraint{"minProperties", mp}
+	return Constraint{constants.ConstraintTypeMinProperties, mp}
 }
 
 func DefaultConstraintArrayAllOf(ins interface{}) Constraint {
-	return Constraint{"allOf", ins}
+	return Constraint{constants.ConstraintTypeAllOf, ins}
 }
 
 func DefaultConstraintArrayAnyOf(ins interface{}) Constraint {
-	return Constraint{"anyOf", ins}
+	return Constraint{constants.ConstraintTypeAnyOf, ins}
 }
 
 func DefaultConstraintArrayOneOf(ins interface{}) Constraint {
-	return Constraint{"oneOf", ins}
+	return Constraint{constants.ConstraintTypeOneOf, ins}
 }
 
 func UnmarshalParameters(original []interface{}) []Parameter {
