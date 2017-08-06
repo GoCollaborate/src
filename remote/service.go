@@ -75,6 +75,7 @@ func (s *Service) Register(agt *Agent) error {
 // de-register function will not preserve the original order of registers
 func (s *Service) DeRegister(agt *Agent) error {
 	y := s.RegList[:0]
+
 	for i, x := range s.RegList {
 		if agt.IsEqualTo(&x) {
 			y = append(s.RegList[:i], s.RegList[i+1:]...)
@@ -82,7 +83,13 @@ func (s *Service) DeRegister(agt *Agent) error {
 			return nil
 		}
 	}
-	return constants.ErrNoSubscriber
+	return constants.ErrNoRegister
+}
+
+func (s *Service) DeRegisterAll() error {
+	y := []Agent{}
+	s.RegList = y
+	return nil
 }
 
 func (s *Service) Subscribe(token string) error {
@@ -105,6 +112,12 @@ func (s *Service) UnSubscribe(token string) error {
 		}
 	}
 	return constants.ErrNoSubscriber
+}
+
+func (s *Service) UnSubscribeAll() error {
+	y := []string{}
+	s.SbscrbList = y
+	return nil
 }
 
 func UnmarshalMode(original interface{}) mode {
