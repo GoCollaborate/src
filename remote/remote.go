@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/core"
+	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net"
@@ -25,7 +28,6 @@ func (bk *BookKeeper) LookAt(cb *ContactBook) {
 func (bk *BookKeeper) Watch() {
 	bk.Book.Load()
 	bk.Book.LaunchServer()
-
 	// bridge to remote servers
 	bk.Book.Bridge()
 
@@ -41,23 +43,26 @@ func (bk *BookKeeper) LookAtAndWatch(cb *ContactBook) {
 }
 
 func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
+	bk.Book.Link(router)
 	router.HandleFunc("/", handlerFuncBookKeeperEntry)
 	return router
 }
 
 // current RPC port
 func Default() *Agent {
-	return &Agent{"localhost", GetPort(), true}
+	return &Agent{"localhost", GetPort(), true, ""}
 }
 
 // local is the local config of server
 type ContactBook struct {
-	Agents                 []Agent `json:"agents,omitempty"`
-	Local                  Agent   `json:"local,omitempty"`
-	Coordinator            Agent   `json:"coordinator,omitempty"`
-	ForbidPointToPointConn bool    `json:"forbidPointToPointConn,omitempty"`
-	IsCoordinator          bool    `json:"isCoordinator,omitempty"`
-	TimeStamp              int64   `json:"timestamp,omitempty"`
+	Agents                 []Agent         `json:"agents,omitempty"`
+	Local                  Agent           `json:"local,omitempty"`
+	Coordinator            Agent           `json:"coordinator,omitempty"`
+	ForbidPointToPointConn bool            `json:"forbidPointToPointConn,omitempty"`
+	IsCoordinator          bool            `json:"isCoordinator,omitempty"`
+	TimeStamp              int64           `json:"timestamp,omitempty"`
+	Publisher              *core.Publisher `json:"-"`
+	Logger                 *logger.Logger  `json:"-"`
 }
 
 // agent is the network config of server
@@ -65,6 +70,7 @@ type Agent struct {
 	IP    string `json:"ip"`
 	Port  int    `json:"port"`
 	Alive bool   `json:"alive"`
+	API   string `json:"api,omitempty"`
 }
 
 func Populate(cfg *ContactBook) error {
@@ -113,7 +119,7 @@ func (c *ContactBook) Load() (*ContactBook, error) {
 	} else {
 		// activate if not alive
 		if !c.Agents[idx].Alive {
-			c.Agents[idx] = Agent{c.Agents[idx].IP, c.Agents[idx].Port, true}
+			c.Agents[idx] = Agent{c.Agents[idx].IP, c.Agents[idx].Port, true, ""}
 			c.Sync()
 		}
 	}
@@ -172,7 +178,7 @@ func (c *ContactBook) RemoteDisconnect() (*ContactBook, error) {
 	} else {
 		// deactivate if alive
 		if c.Agents[index].Alive {
-			c.Agents[index] = Agent{c.Agents[index].IP, c.Agents[index].Port, false}
+			c.Agents[index] = Agent{c.Agents[index].IP, c.Agents[index].Port, false, ""}
 			c.Stamp()
 			for _, a := range localBook.Agents {
 				if a.IsEqualTo(&c.Agents[index]) {
@@ -227,6 +233,23 @@ func (c *ContactBook) RemoteTerminate() (*ContactBook, error) {
 	return c, nil
 }
 
+func (c *ContactBook) Link(router *mux.Router) {
+	// register tasks existing in publisher
+	// reflect api endpoint based on exposed task (function) name
+	// once api get called, use distribute
+	for _, tskFunc := range c.Publisher.ExposedTasks {
+		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc))
+		router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
+			// todo: add arguments to tsk
+			// (not task function, just make sure
+			// arguments are passed to each internal
+			// function in task struct)
+			c.Publisher.Distribute(tskFunc())
+		})
+	}
+}
+
+// bridge to peer servers
 func (c *ContactBook) Bridge() {
 	for _, e := range c.Agents {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
@@ -368,7 +391,8 @@ func (c *ContactBook) LaunchServer() {
 		methods := new(LocalMethods)
 		server := rpc.NewServer()
 		RegisterRemote(server, methods)
-		server.HandleHTTP("/", "/debug")
+		// debug setup for regcenter to check services alive
+		server.HandleHTTP("/", "debug")
 		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Local.Port))
 		if e != nil {
 			fmt.Println("Listen Error:", e)
@@ -379,7 +403,7 @@ func (c *ContactBook) LaunchServer() {
 }
 
 func LaunchClient(endpoint string, port int) (*RPCClient, error) {
-	clientContact := Agent{endpoint, port, true}
+	clientContact := Agent{endpoint, port, true, ""}
 	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
 		fmt.Println("Dialing:", err)
@@ -393,6 +417,10 @@ func (c *Agent) GetFullIP() string {
 	return c.IP + ":" + strconv.Itoa(c.Port)
 }
 
+func (c *Agent) GetFullEndPoint() string {
+	return c.IP + ":" + strconv.Itoa(c.Port) + "/" + c.API
+}
+
 func (c *Agent) IsEqualTo(another *Agent) bool {
 	return c.GetFullIP() == another.GetFullIP()
 }
@@ -401,7 +429,11 @@ func UnmarshalAgents(original []interface{}) []Agent {
 	var agents []Agent
 	for _, o := range original {
 		oo := o.(map[string]interface{})
-		agents = append(agents, Agent{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool)})
+		if oo["api"] != nil {
+			agents = append(agents, Agent{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), oo["api"].(string)})
+			continue
+		}
+		agents = append(agents, Agent{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), ""})
 	}
 	return agents
 }

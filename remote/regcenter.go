@@ -423,6 +423,7 @@ func (rc *RegCenter) HeartBeatAll() []Agent {
 	var expired []Agent
 	for _, service := range rc.Services {
 		for _, register := range service.RegList {
+			// test via predeclared endpoint
 			res, err := http.Get(register.GetFullIP() + "/debug/heartbeat")
 			if err != nil || res.StatusCode != 200 {
 				expired = append(expired, register)

@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/server/task"
 )
 
 type Element interface {
@@ -15,11 +16,11 @@ type Worker struct {
 	ID          uint64
 	Owner       Master
 	Alive       bool
-	baseTasks   chan Task
-	lowTasks    chan Task
-	mediumTasks chan Task
-	highTasks   chan Task
-	urgentTasks chan Task
+	baseTasks   chan task.Task
+	lowTasks    chan task.Task
+	mediumTasks chan task.Task
+	highTasks   chan task.Task
+	urgentTasks chan task.Task
 	quit        chan bool
 }
 

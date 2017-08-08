@@ -3,6 +3,7 @@ package server
 import (
 	"errors"
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/server/task"
 	"strconv"
 )
 
@@ -10,48 +11,48 @@ type Master struct {
 	Count       uint64
 	List        map[uint64]*Worker
 	Logger      *logger.Logger
-	baseTasks   chan Task
-	lowTasks    chan Task
-	mediumTasks chan Task
-	highTasks   chan Task
-	urgentTasks chan Task
+	baseTasks   chan task.Task
+	lowTasks    chan task.Task
+	mediumTasks chan task.Task
+	highTasks   chan task.Task
+	urgentTasks chan task.Task
 }
 
 func NewMaster(args ...*logger.Logger) *Master {
 	if len(args) > 0 {
-		return &Master{0, make(map[uint64]*Worker), args[0], make(chan Task), make(chan Task), make(chan Task), make(chan Task), make(chan Task)}
+		return &Master{0, make(map[uint64]*Worker), args[0], make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task)}
 	}
-	return &Master{0, make(map[uint64]*Worker), nil, make(chan Task), make(chan Task), make(chan Task), make(chan Task), make(chan Task)}
+	return &Master{0, make(map[uint64]*Worker), nil, make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task)}
 }
 
-func (m *Master) Enqueue(t Task) {
+func (m *Master) Enqueue(t task.Task) {
 	switch t.Priority.GetPriority() {
-	case URGENT:
+	case task.URGENT:
 		m.urgentTasks <- t
-	case HIGH:
+	case task.HIGH:
 		m.highTasks <- t
-	case MEDIUM:
+	case task.MEDIUM:
 		m.mediumTasks <- t
-	case LOW:
+	case task.LOW:
 		m.lowTasks <- t
 	default:
 		m.baseTasks <- t
 	}
 }
 
-func (m *Master) EnqueueMulti(ts []Task) {
+func (m *Master) EnqueueMulti(ts []task.Task) {
 	for _, t := range ts {
 		switch t.Priority.GetPriority() {
-		case URGENT:
+		case task.URGENT:
 			m.urgentTasks <- t
 			continue
-		case HIGH:
+		case task.HIGH:
 			m.highTasks <- t
 			continue
-		case MEDIUM:
+		case task.MEDIUM:
 			m.mediumTasks <- t
 			continue
-		case LOW:
+		case task.LOW:
 			m.lowTasks <- t
 			continue
 		default:

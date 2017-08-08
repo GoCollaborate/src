@@ -3,6 +3,7 @@ package main
 import (
 	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/core"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote"
 	"github.com/GoCollaborate/server"
@@ -13,8 +14,6 @@ import (
 	"strconv"
 	"time"
 )
-
-var pbls *server.Publisher
 
 func main() {
 	// initialise environment
@@ -42,16 +41,18 @@ func main() {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
 		// create book keeper
 		bkp := new(remote.BookKeeper)
+		// create publisher
+		pbls := core.GetPublisherInstance(localLogger)
 		// create contact book
-		contactBook := remote.ContactBook{[]remote.Agent{}, remote.Agent{}, *remote.Default(), false, false, time.Now().Unix()}
+		contactBook := remote.ContactBook{[]remote.Agent{}, remote.Agent{}, *remote.Default(), false, false, time.Now().Unix(), pbls, localLogger}
 		// lock book keeper to contact book
 		bkp.LookAtAndWatch(&contactBook)
 
-		// pbls = server.NewPublisher(localLogger)
 		mst := server.NewMaster(localLogger)
-		// pbls.Connect(mst)
 		mst.BatchAttach(sysvars.MaxRoutines)
 		mst.LaunchAll()
+		// connect to master
+		pbls.Connect(mst)
 		bkp.Handle(router)
 	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
 		regCenter := remote.GetRegCenterInstance(sysvars.Port, localLogger)

@@ -1,7 +1,6 @@
-package server
+package task
 
 import (
-	"fmt"
 	"github.com/GoCollaborate/constants"
 	"time"
 )
@@ -60,23 +59,4 @@ type Task struct {
 	Type       taskType
 	Priority   taskPriority
 	Consumable func() bool
-}
-
-func TaskA() Task {
-	return Task{PERMANENT, BASE, func() bool {
-		fmt.Println("Task A Executed...")
-		return true
-	}}
-}
-func TaskB() Task {
-	return Task{LONG, MEDIUM, func() bool {
-		fmt.Println("Task B Executed...")
-		return true
-	}}
-}
-func TaskC() Task {
-	return Task{SHORT, URGENT, func() bool {
-		fmt.Println("Task C Executed...")
-		return true
-	}}
 }
