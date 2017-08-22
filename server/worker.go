@@ -33,31 +33,31 @@ func (w *Worker) Start() {
 			case tk := <-w.urgentTasks:
 				w.Owner.Logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 				logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-				tk.Consumable()
+				tk.Consumable(tk.Source, tk.Result, tk.Context)
 			default:
 				select {
 				case tk := <-w.highTasks:
 					w.Owner.Logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 					logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-					tk.Consumable()
+					tk.Consumable(tk.Source, tk.Result, tk.Context)
 				default:
 					select {
 					case tk := <-w.mediumTasks:
 						w.Owner.Logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 						logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-						tk.Consumable()
+						tk.Consumable(tk.Source, tk.Result, tk.Context)
 					default:
 						select {
 						case tk := <-w.lowTasks:
 							w.Owner.Logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 							logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-							tk.Consumable()
+							tk.Consumable(tk.Source, tk.Result, tk.Context)
 						default:
 							select {
 							case tk := <-w.baseTasks:
 								w.Owner.Logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 								logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-								tk.Consumable()
+								tk.Consumable(tk.Source, tk.Result, tk.Context)
 							default:
 								continue
 							}

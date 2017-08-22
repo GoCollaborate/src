@@ -25,39 +25,19 @@ func NewMaster(args ...*logger.Logger) *Master {
 	return &Master{0, make(map[uint64]*Worker), nil, make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task)}
 }
 
-func (m *Master) Enqueue(t task.Task) {
-	switch t.Priority.GetPriority() {
-	case task.URGENT:
-		m.urgentTasks <- t
-	case task.HIGH:
-		m.highTasks <- t
-	case task.MEDIUM:
-		m.mediumTasks <- t
-	case task.LOW:
-		m.lowTasks <- t
-	default:
-		m.baseTasks <- t
-	}
-}
-
-func (m *Master) EnqueueMulti(ts []task.Task) {
+func (m *Master) Enqueue(ts ...task.Task) {
 	for _, t := range ts {
 		switch t.Priority.GetPriority() {
 		case task.URGENT:
 			m.urgentTasks <- t
-			continue
 		case task.HIGH:
 			m.highTasks <- t
-			continue
 		case task.MEDIUM:
 			m.mediumTasks <- t
-			continue
 		case task.LOW:
 			m.lowTasks <- t
-			continue
 		default:
 			m.baseTasks <- t
-			continue
 		}
 	}
 }

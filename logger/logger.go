@@ -56,24 +56,32 @@ func (logger *Logger) LogNormal(content string, mode ...int) {
 	logger.Internal.Println(transform(content, mode...))
 }
 
-func LogHeader(content string, mode ...int) {
-	fmt.Println("=======" + transform(content, mode...) + "=======")
+func LogHeader(content interface{}, mode ...int) {
+	fmt.Println("=======" + transform(fmt.Sprintf("%v", content), mode...) + "=======")
 }
 
-func LogProgress(content string, mode ...int) {
-	fmt.Println("======>" + transform(content, mode...) + "...")
+func LogProgress(content interface{}, mode ...int) {
+	fmt.Println("======>" + transform(fmt.Sprintf("%v", content), mode...) + "...")
 }
 
-func LogWarning(content string, mode ...int) {
-	fmt.Println("*******" + transform(content, mode...) + "*******")
+func LogWarning(content interface{}, mode ...int) {
+	fmt.Println("*******" + transform(fmt.Sprintf("%v", content), mode...) + "*******")
 }
 
-func LogError(content string, mode ...int) {
-	fmt.Println("@@@@@@@" + transform(content, mode...) + "@@@@@@@")
+func LogError(content interface{}, mode ...int) {
+	fmt.Println("@@@@@@@" + transform(fmt.Sprintf("%v", content), mode...) + "@@@@@@@")
 }
 
-func LogNormal(content string, mode ...int) {
-	fmt.Println(transform(content, mode...))
+func LogNormal(content interface{}, mode ...int) {
+	fmt.Println(transform(fmt.Sprintf("%v", content), mode...))
+}
+
+func LogNormalWithPrefix(mode int, content ...interface{}) {
+	LogNormal(strings.TrimSuffix(fmt.Sprintln(content...), "\n"), mode)
+}
+
+func LogErrorWithPrefix(mode int, content ...interface{}) {
+	LogNormal(strings.TrimSuffix(fmt.Sprintln(content...), "\n"), mode)
 }
 
 func transform(in string, mode ...int) (out string) {

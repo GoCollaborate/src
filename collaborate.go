@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"time"
 )
 
 func main() {
@@ -40,13 +39,13 @@ func main() {
 	switch sysvars.ServerMode {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
 		// create book keeper
-		bkp := new(remote.BookKeeper)
+		bkp := remote.NewBookKeeper()
 		// create publisher
-		pbls := core.GetPublisherInstance(localLogger)
-		// create contact book
-		contactBook := remote.ContactBook{[]remote.Agent{}, remote.Agent{}, *remote.Default(), false, false, time.Now().Unix(), pbls, localLogger}
-		// lock book keeper to contact book
-		bkp.LookAtAndWatch(&contactBook)
+		pbls := server.GetPublisherInstance(localLogger)
+		bkp.WatchNewBook(pbls, localLogger)
+
+		// register tasks
+		pbls.AddExposed(core.TaskAHandler, core.TaskBHandler, core.TaskCHandler)
 
 		mst := server.NewMaster(localLogger)
 		mst.BatchAttach(sysvars.MaxRoutines)

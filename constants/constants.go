@@ -101,3 +101,7 @@ var (
 const (
 	JSONAPIVersion = `{"version":"1.0"}`
 )
+
+const (
+	ProjectDir = "github.com/GoCollaborate/"
+)

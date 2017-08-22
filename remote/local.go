@@ -1,13 +1,13 @@
 package remote
 
 import (
-	"fmt"
+	"github.com/GoCollaborate/logger"
 )
 
 type LocalMethods int
 
 func (l *LocalMethods) Signal(arg *ContactBook, update *ContactBook) error {
-	fmt.Println("Signal Acquired!")
+	logger.LogNormal("Signal Acquired!")
 	upd, err := arg.RemoteLoad()
 
 	// update local config to remote call
@@ -21,7 +21,7 @@ func (l *LocalMethods) Signal(arg *ContactBook, update *ContactBook) error {
 }
 
 func (l *LocalMethods) Disconnect(arg *ContactBook, update *ContactBook) error {
-	fmt.Println("Disconnect:" + arg.Local.GetFullIP())
+	logger.LogNormal("Disconnect:" + arg.Local.GetFullIP())
 	upd, err := arg.RemoteDisconnect()
 
 	// update local config to remote call
@@ -36,7 +36,7 @@ func (l *LocalMethods) Disconnect(arg *ContactBook, update *ContactBook) error {
 }
 
 func (l *LocalMethods) Terminate(arg *ContactBook, update *ContactBook) error {
-	fmt.Println("Terminate:" + arg.Local.GetFullIP())
+	logger.LogNormal("Terminate:" + arg.Local.GetFullIP())
 	upd, err := arg.RemoteTerminate()
 
 	// update local config to remote call
@@ -44,8 +44,6 @@ func (l *LocalMethods) Terminate(arg *ContactBook, update *ContactBook) error {
 	upd.Local.Alive = false
 	update.Local = upd.Local
 	update.TimeStamp = upd.TimeStamp
-
-	fmt.Println(update)
 
 	if err != nil {
 		return err

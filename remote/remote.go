@@ -2,10 +2,9 @@ package remote
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/core"
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/server"
 	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"io/ioutil"
@@ -21,11 +20,12 @@ type BookKeeper struct {
 	Book ContactBook
 }
 
-func (bk *BookKeeper) LookAt(cb *ContactBook) {
-	bk.Book = *cb
+func NewBookKeeper() *BookKeeper {
+	return new(BookKeeper)
 }
 
-func (bk *BookKeeper) Watch() {
+func (bk *BookKeeper) WatchNewBook(pbls *server.Publisher, localLogger *logger.Logger) {
+	bk.Book = ContactBook{[]Agent{}, Agent{}, *Default(), false, false, time.Now().Unix(), pbls, localLogger}
 	bk.Book.Load()
 	bk.Book.LaunchServer()
 	// bridge to remote servers
@@ -37,13 +37,19 @@ func (bk *BookKeeper) Watch() {
 	// contactBook.Terminate()
 }
 
-func (bk *BookKeeper) LookAtAndWatch(cb *ContactBook) {
-	bk.LookAt(cb)
-	bk.Watch()
-}
-
 func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
-	bk.Book.Link(router)
+	// register tasks existing in publisher
+	// reflect api endpoint based on exposed task (function) name
+	// once api get called, use distribute
+	c := &bk.Book
+	for _, tskFunc := range c.Publisher.ExposedTasks {
+		// tskFunc is an iterator, and it shouldn't
+		// be accessed during the runtime
+		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc))
+		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", api)
+		// local registry
+		c.Publisher.Handle(router, api, tskFunc)
+	}
 	router.HandleFunc("/", handlerFuncBookKeeperEntry)
 	return router
 }
@@ -55,14 +61,14 @@ func Default() *Agent {
 
 // local is the local config of server
 type ContactBook struct {
-	Agents                 []Agent         `json:"agents,omitempty"`
-	Local                  Agent           `json:"local,omitempty"`
-	Coordinator            Agent           `json:"coordinator,omitempty"`
-	ForbidPointToPointConn bool            `json:"forbidPointToPointConn,omitempty"`
-	IsCoordinator          bool            `json:"isCoordinator,omitempty"`
-	TimeStamp              int64           `json:"timestamp,omitempty"`
-	Publisher              *core.Publisher `json:"-"`
-	Logger                 *logger.Logger  `json:"-"`
+	Agents                 []Agent           `json:"agents,omitempty"`
+	Local                  Agent             `json:"local,omitempty"`
+	Coordinator            Agent             `json:"coordinator,omitempty"`
+	ForbidPointToPointConn bool              `json:"forbidPointToPointConn,omitempty"`
+	IsCoordinator          bool              `json:"isCoordinator,omitempty"`
+	TimeStamp              int64             `json:"timestamp,omitempty"`
+	Publisher              *server.Publisher `json:"-"`
+	Logger                 *logger.Logger    `json:"-"`
 }
 
 // agent is the network config of server
@@ -80,7 +86,7 @@ func Populate(cfg *ContactBook) error {
 	}
 	// unmarshal, overwrite default if already existed in config file
 	if err := json.Unmarshal(bytes, &cfg); err != nil {
-		fmt.Println(err)
+		logger.LogError(err.Error())
 		return err
 	}
 	return nil
@@ -92,24 +98,22 @@ func (c *ContactBook) Load() (*ContactBook, error) {
 		return c, err
 	}
 
-	fmt.Println("Localaddress:")
+	logger.LogNormal("Localaddress:")
 	ip := GetLocalIP()
-	fmt.Println(ip)
+	logger.LogNormal(ip)
 
 	var exist bool = false
 	var idx int
 
-	fmt.Println("Successfully Load Config File...")
-	fmt.Println("Hosts:")
+	logger.LogNormal("Successfully Load Config File...")
+	logger.LogNormal("Hosts:")
 
 	for i, h := range c.Agents {
 		if h.IsEqualTo(&c.Local) {
 			exist = true
 			idx = i
 		}
-		fmt.Print(h.IP)
-		fmt.Print(":")
-		fmt.Println(h.Port)
+		logger.LogNormal(h.GetFullIP())
 	}
 
 	// update if not exist
@@ -219,34 +223,15 @@ func (c *ContactBook) RemoteTerminate() (*ContactBook, error) {
 			index = j
 		}
 	}
-	fmt.Println(c)
 	if index >= 0 {
 		c.RemoveAgent(index)
 		c.Stamp()
 	}
 
-	fmt.Println(c)
-
 	if update {
 		localBook.Sync()
 	}
 	return c, nil
-}
-
-func (c *ContactBook) Link(router *mux.Router) {
-	// register tasks existing in publisher
-	// reflect api endpoint based on exposed task (function) name
-	// once api get called, use distribute
-	for _, tskFunc := range c.Publisher.ExposedTasks {
-		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc))
-		router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-			// todo: add arguments to tsk
-			// (not task function, just make sure
-			// arguments are passed to each internal
-			// function in task struct)
-			c.Publisher.Distribute(tskFunc())
-		})
-	}
 }
 
 // bridge to peer servers
@@ -255,13 +240,13 @@ func (c *ContactBook) Bridge() {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
 			if err != nil {
-				fmt.Println("Connection Failed While Bridging...")
+				logger.LogWarning("Connection Failed While Bridging...")
 				continue
 			}
 			var u ContactBook
 			err = client.Signal(c, &u)
 			if err != nil {
-				fmt.Println("Calling Method Failed While Bridging...")
+				logger.LogWarning("Calling Method Failed While Bridging...")
 				continue
 			}
 			u.Update(c).WriteStream()
@@ -274,13 +259,13 @@ func (c *ContactBook) Disconnect() {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
 			if err != nil {
-				fmt.Println("Connection Failed While Disconnecting...")
+				logger.LogWarning("Connection Failed While Disconnecting...")
 				continue
 			}
 			var u ContactBook
 			err = client.Disconnect(c, &u)
 			if err != nil {
-				fmt.Println("Calling Method Failed While Disconnecting...")
+				logger.LogWarning("Calling Method Failed While Disconnecting...")
 				continue
 			}
 			u.Update(c).WriteStream()
@@ -293,13 +278,13 @@ func (c *ContactBook) Terminate() {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
 			if err != nil {
-				fmt.Println("Connection Failed While Terminating...")
+				logger.LogWarning("Connection Failed While Terminating...")
 				continue
 			}
 			var u ContactBook
 			err = client.Terminate(c, &u)
 			if err != nil {
-				fmt.Println("Calling Method Failed While Terminating...")
+				logger.LogWarning("Calling Method Failed While Terminating...")
 				continue
 			}
 			u.Update(c).WriteStream()
@@ -327,7 +312,7 @@ func (c *ContactBook) WriteStream() {
 	mal, err := json.Marshal(&c)
 	err = ioutil.WriteFile(constants.DefaultContactBookPath, mal, os.ModeExclusive)
 	if err != nil {
-		fmt.Println(err)
+		logger.LogError(err)
 	}
 }
 
@@ -395,7 +380,7 @@ func (c *ContactBook) LaunchServer() {
 		server.HandleHTTP("/", "debug")
 		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Local.Port))
 		if e != nil {
-			fmt.Println("Listen Error:", e)
+			logger.LogErrorWithPrefix(logger.NORMAL, "Listen Error:", e)
 		}
 		http.Serve(l, nil)
 	}()
@@ -406,7 +391,7 @@ func LaunchClient(endpoint string, port int) (*RPCClient, error) {
 	clientContact := Agent{endpoint, port, true, ""}
 	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
-		fmt.Println("Dialing:", err)
+		logger.LogErrorWithPrefix(logger.NORMAL, "Dialing:", err)
 		return &RPCClient{}, err
 	}
 	agent := &RPCClient{Client: client}
@@ -439,5 +424,5 @@ func UnmarshalAgents(original []interface{}) []Agent {
 }
 
 func handlerFuncBookKeeperEntry(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("Bookkeeper Println...")
+	logger.LogNormal("Bookkeeper Println...")
 }
