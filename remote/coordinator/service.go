@@ -1,7 +1,8 @@
-package remote
+package coordinator
 
 import (
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/remote/remoteshared"
 )
 
 // remote settings
@@ -16,18 +17,18 @@ const (
 )
 
 type Service struct {
-	ServiceID        string      `json:"serviceid"`
-	Description      string      `json:"description"`
-	Parameters       []Parameter `json:"parameters"`
-	RegList          []Agent     `json:"registers"`
-	SbscrbList       []string    `json:"subscribers"`  // subscriber tokens
-	Dependencies     []string    `json:"dependencies"` // dependent ServiceIDs
-	Mode             mode        `json:"mode,omitempty"`
-	LoadBalanceMode  mode        `json:"load_balance_mode,omitemtpy"`
-	Version          string      `json:"version"`
-	PlatformVersion  string      `json:"platform_version"`
-	LastAssignedTo   string      `json:"last_assigned_to"`
-	LastAssignedTime int64       `json:"last_assigned_time"`
+	ServiceID        string                   `json:"serviceid"`
+	Description      string                   `json:"description"`
+	Parameters       []remoteshared.Parameter `json:"parameters"`
+	RegList          []remoteshared.Agent     `json:"registers"`
+	SbscrbList       []string                 `json:"subscribers"`  // subscriber tokens
+	Dependencies     []string                 `json:"dependencies"` // dependent ServiceIDs
+	Mode             mode                     `json:"mode,omitempty"`
+	LoadBalanceMode  mode                     `json:"load_balance_mode,omitemtpy"`
+	Version          string                   `json:"version"`
+	PlatformVersion  string                   `json:"platform_version"`
+	LastAssignedTo   string                   `json:"last_assigned_to"`
+	LastAssignedTime int64                    `json:"last_assigned_time"`
 }
 
 type Mode interface {
@@ -62,7 +63,7 @@ func (s *Service) GetLoadBalanceMode() mode {
 	return s.LoadBalanceMode
 }
 
-func (s *Service) Register(agt *Agent) error {
+func (s *Service) Register(agt *remoteshared.Agent) error {
 	for _, r := range s.RegList {
 		if agt.IsEqualTo(&r) {
 			return constants.ErrConflictRegister
@@ -73,7 +74,7 @@ func (s *Service) Register(agt *Agent) error {
 }
 
 // de-register function will not preserve the original order of registers
-func (s *Service) DeRegister(agt *Agent) error {
+func (s *Service) DeRegister(agt *remoteshared.Agent) error {
 	y := s.RegList[:0]
 
 	for i, x := range s.RegList {
@@ -87,7 +88,7 @@ func (s *Service) DeRegister(agt *Agent) error {
 }
 
 func (s *Service) DeRegisterAll() error {
-	y := []Agent{}
+	y := []remoteshared.Agent{}
 	s.RegList = y
 	return nil
 }

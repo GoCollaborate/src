@@ -1,10 +1,11 @@
-package remote
+package coordinator
 
 import (
 	"encoding/base64"
 	"encoding/json"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/remote/remoteshared"
 	"github.com/GoCollaborate/restful"
 	"github.com/GoCollaborate/utils"
 	"github.com/GoCollaborate/web"
@@ -23,10 +24,10 @@ const (
 	RPCServiceLength = 15
 )
 
-var center *RegCenter
+var center *Coordinator
 var once sync.Once
 
-type RegCenter struct {
+type Coordinator struct {
 	Created  int64               `json:"created"`  // time in epoch milliseconds indicating when the registry center was created
 	Modified int64               `json:"modified"` // time in epoch milliseconds indicating when the registry center was last modified
 	Services map[string]*Service `json:"services"` // map of ServiceID to Services
@@ -36,14 +37,14 @@ type RegCenter struct {
 }
 
 // singleton instance of registry center
-func GetRegCenterInstance(port int, lg *logger.Logger) *RegCenter {
+func GetCoordinatorInstance(port int, lg *logger.Logger) *Coordinator {
 	once.Do(func() {
-		center = &RegCenter{time.Now().Unix(), time.Now().Unix(), map[string]*Service{}, port, runtime.Version(), *lg}
+		center = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*Service{}, port, runtime.Version(), *lg}
 	})
 	return center
 }
 
-func (rc *RegCenter) Handle(router *mux.Router) *mux.Router {
+func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 
 	center = rc
 
@@ -69,7 +70,7 @@ func (rc *RegCenter) Handle(router *mux.Router) *mux.Router {
 }
 
 // POST
-func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) (string, error) {
 	// parse request json and create service here
 	payload := restful.Decode(js)
 	var resData []restful.Resource
@@ -77,10 +78,10 @@ func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, er
 		if dat.Type == "service" {
 			id := utils.RandStringBytesMaskImprSrc(RPCServiceLength)
 			svrs := Service{id, dat.Attributes["description"].(string),
-				UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
-				UnmarshalAgents(dat.Attributes["registers"].([]interface{})),
-				UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
-				UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
+				remoteshared.UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
+				remoteshared.UnmarshalAgents(dat.Attributes["registers"].([]interface{})),
+				remoteshared.UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
+				remoteshared.UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
 				UnmarshalMode(dat.Attributes["mode"]),
 				UnmarshalMode(dat.Attributes["load_balance_mode"]),
 				dat.Attributes["version"].(string),
@@ -104,11 +105,11 @@ func (rc *RegCenter) CreateService(w http.ResponseWriter, js string) (string, er
 }
 
 // POST
-func (rc *RegCenter) RegisterService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string) (string, error) {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "registry" {
-			agents := UnmarshalAgents(dat.Attributes["agents"].([]interface{}))
+			agents := remoteshared.UnmarshalAgents(dat.Attributes["agents"].([]interface{}))
 			srvID := dat.ID
 			if _, ok := rc.Services[srvID]; !ok {
 				errPayload := restful.Error404NotFound()
@@ -148,7 +149,7 @@ func (rc *RegCenter) RegisterService(w http.ResponseWriter, js string) (string, 
 }
 
 // POST
-func (rc *RegCenter) SubscribeService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string) (string, error) {
 	var tks []restful.Resource
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
@@ -188,7 +189,7 @@ func (rc *RegCenter) SubscribeService(w http.ResponseWriter, js string) (string,
 }
 
 // DELETE
-func (rc *RegCenter) DeleteService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) DeleteService(w http.ResponseWriter, js string) (string, error) {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "service" {
@@ -214,7 +215,7 @@ func (rc *RegCenter) DeleteService(w http.ResponseWriter, js string) (string, er
 }
 
 // DELETE
-func (rc *RegCenter) DeRegisterService(w http.ResponseWriter, r *http.Request, srvID string, agent *Agent) (string, error) {
+func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request, srvID string, agent *remoteshared.Agent) (string, error) {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
@@ -243,7 +244,7 @@ func (rc *RegCenter) DeRegisterService(w http.ResponseWriter, r *http.Request, s
 		return srvID, err
 	}
 	payload := restful.Payload{
-		marshalServiceToStandardResource(services),
+		MarshalServiceToStandardResource(services),
 		[]restful.Resource{},
 		restful.Links{
 			Self: r.URL.String(),
@@ -261,7 +262,7 @@ func (rc *RegCenter) DeRegisterService(w http.ResponseWriter, r *http.Request, s
 }
 
 // DELETE
-func (rc *RegCenter) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
+func (rc *Coordinator) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
@@ -276,7 +277,7 @@ func (rc *RegCenter) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request
 	services := map[string]*Service{}
 	services[srvID] = rc.Services[srvID]
 	payload := restful.Payload{
-		marshalServiceToStandardResource(services),
+		MarshalServiceToStandardResource(services),
 		[]restful.Resource{},
 		restful.Links{
 			Self: r.URL.String(),
@@ -295,7 +296,7 @@ func (rc *RegCenter) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request
 }
 
 // DELETE
-func (rc *RegCenter) UnSubscribeService(w http.ResponseWriter, r *http.Request, srvID string, token string) (string, error) {
+func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request, srvID string, token string) (string, error) {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
@@ -324,7 +325,7 @@ func (rc *RegCenter) UnSubscribeService(w http.ResponseWriter, r *http.Request, 
 		return srvID, err
 	}
 	payload := restful.Payload{
-		marshalServiceToStandardResource(services),
+		MarshalServiceToStandardResource(services),
 		[]restful.Resource{},
 		restful.Links{
 			Self: r.URL.String(),
@@ -342,7 +343,7 @@ func (rc *RegCenter) UnSubscribeService(w http.ResponseWriter, r *http.Request, 
 }
 
 // DELETE
-func (rc *RegCenter) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
+func (rc *Coordinator) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
@@ -357,7 +358,7 @@ func (rc *RegCenter) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Reques
 	services := map[string]*Service{}
 	services[srvID] = rc.Services[srvID]
 	payload := restful.Payload{
-		marshalServiceToStandardResource(services),
+		MarshalServiceToStandardResource(services),
 		[]restful.Resource{},
 		restful.Links{
 			Self: r.URL.String(),
@@ -375,7 +376,7 @@ func (rc *RegCenter) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Reques
 }
 
 // PUT
-func (rc *RegCenter) AlterService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) AlterService(w http.ResponseWriter, js string) (string, error) {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "service" {
@@ -393,10 +394,10 @@ func (rc *RegCenter) AlterService(w http.ResponseWriter, js string) (string, err
 			}
 
 			svrs := Service{dat.ID, dat.Attributes["description"].(string),
-				UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
-				UnmarshalAgents(dat.Attributes["registers"].([]interface{})),
-				UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
-				UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
+				remoteshared.UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
+				remoteshared.UnmarshalAgents(dat.Attributes["registers"].([]interface{})),
+				remoteshared.UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
+				remoteshared.UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
 				UnmarshalMode(dat.Attributes["mode"]),
 				UnmarshalMode(dat.Attributes["load_balance_mode"]),
 				dat.Attributes["version"].(string),
@@ -417,10 +418,10 @@ func (rc *RegCenter) AlterService(w http.ResponseWriter, js string) (string, err
 	return rtjs, nil
 }
 
-func (rc *RegCenter) HeartBeatAll() []Agent {
+func (rc *Coordinator) HeartBeatAll() []remoteshared.Agent {
 	// send heartbeat signals to all service providers
 	// return which of them have already expired
-	var expired []Agent
+	var expired []remoteshared.Agent
 	for _, service := range rc.Services {
 		for _, register := range service.RegList {
 			// test via predeclared endpoint
@@ -433,10 +434,10 @@ func (rc *RegCenter) HeartBeatAll() []Agent {
 	return expired
 }
 
-func (rc *RegCenter) RefreshList() {
+func (rc *Coordinator) RefreshList() {
 	// acquire logs from heartbeat detection and remove those which have already expired
 	for _, service := range rc.Services {
-		var activated []Agent
+		var activated []remoteshared.Agent
 		for _, register := range service.RegList {
 			res, err := http.Get(register.GetFullIP() + "/debug/heartbeat")
 			if err == nil && res.StatusCode == 200 {
@@ -448,7 +449,7 @@ func (rc *RegCenter) RefreshList() {
 	return
 }
 
-func (rc *RegCenter) Dump() {
+func (rc *Coordinator) Dump() {
 	// dump registry data to local dat file
 	// constants.DataStorePath
 	err1 := os.Chmod(constants.DefaultDataStorePath, 0777)
@@ -467,7 +468,7 @@ func (rc *RegCenter) Dump() {
 func handlerFuncGetServices(w http.ResponseWriter, r *http.Request) {
 	// look up service list, returning service providers
 	payload := restful.Payload{
-		marshalServiceToStandardResource(center.Services),
+		MarshalServiceToStandardResource(center.Services),
 		[]restful.Resource{},
 		restful.Links{
 			Self: r.URL.String(),
@@ -491,7 +492,7 @@ func handlerFuncGetService(w http.ResponseWriter, r *http.Request) {
 		services := map[string]*Service{}
 		services[srvID] = center.Services[srvID]
 		payload := restful.Payload{
-			marshalServiceToStandardResource(services),
+			MarshalServiceToStandardResource(services),
 			[]restful.Resource{},
 			restful.Links{
 				Self: r.URL.String(),
@@ -593,7 +594,7 @@ func handlerFuncDeRegisterService(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	srvID := vars["srvid"]
 	parJSONStr := vars["parjson"]
-	agent, err := unMarshalRegParJSON(parJSONStr)
+	agent, err := UnMarshalRegParJSON(parJSONStr)
 	if err != nil {
 		return
 	}
@@ -610,7 +611,7 @@ func handlerFuncUnSubscribeService(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-func marshalServiceToStandardResource(srvs map[string]*Service) []restful.Resource {
+func MarshalServiceToStandardResource(srvs map[string]*Service) []restful.Resource {
 	var resources []restful.Resource
 	for _, srv := range srvs {
 		resources = append(resources, restful.Resource{
@@ -631,15 +632,15 @@ func marshalServiceToStandardResource(srvs map[string]*Service) []restful.Resour
 	return resources
 }
 
-func unMarshalRegParJSON(bs64 string) (Agent, error) {
+func UnMarshalRegParJSON(bs64 string) (remoteshared.Agent, error) {
 	decoded, err := base64.StdEncoding.DecodeString(bs64)
 	if err != nil {
-		return Agent{}, err
+		return remoteshared.Agent{}, err
 	}
-	var agt Agent
+	var agt remoteshared.Agent
 	err = json.Unmarshal([]byte(decoded), &agt)
 	if err != nil {
-		return Agent{}, err
+		return remoteshared.Agent{}, err
 	}
 	return agt, nil
 }

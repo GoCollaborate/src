@@ -2,6 +2,8 @@ package core
 
 import (
 	"fmt"
+	//"github.com/GoCollaborate/server/mapper"
+	//"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
 	"net/http"
 )
@@ -13,6 +15,7 @@ func TaskAHandler() (interface{}, []string) {
 		return task.Task{task.PERMANENT, task.BASE, func(source []task.Countable, result []task.Countable, context *task.TaskContext) bool {
 			// deal with passed in request
 			fmt.Println("Task A Executed...")
+
 			return true
 		}, []task.Countable{}, []task.Countable{}, task.NewTaskContext(struct {
 			A string
@@ -46,4 +49,24 @@ func TaskCHandler() (interface{}, []string) {
 			C []bool
 		}{})}
 	}, []string{"POST"}
+}
+
+type SimpleMapper int
+
+func (m *SimpleMapper) Map(t *task.Task) (map[int64]task.Task, error) {
+	maps := make(map[int64]task.Task)
+	for i, r := range t.Source {
+		maps[int64(i)] = task.Task{t.Type, t.Priority, func([]task.Countable, []task.Countable, *task.TaskContext) bool { return false }, []task.Countable{r}, []task.Countable{}, nil}
+	}
+	return maps, nil
+}
+
+type SimpleReducer int
+
+func (r *SimpleReducer) Reduce(sources map[int64]task.Task, result *task.Task) error {
+	rs := *result
+	for _, s := range sources {
+		rs.Result = append(rs.Result, s.Result...)
+	}
+	return nil
 }

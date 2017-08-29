@@ -2,6 +2,7 @@ package logger
 
 import (
 	"fmt"
+	"github.com/fatih/color"
 	"log"
 	"os"
 	"strings"
@@ -49,7 +50,7 @@ func (logger *Logger) LogWarning(content string, mode ...int) {
 }
 
 func (logger *Logger) LogError(content string, mode ...int) {
-	logger.Internal.Println("@@@@@@@" + transform(content, mode...) + "@@@@@@@")
+	logger.Internal.Println("#######" + transform(content, mode...) + "#######")
 }
 
 func (logger *Logger) LogNormal(content string, mode ...int) {
@@ -57,19 +58,20 @@ func (logger *Logger) LogNormal(content string, mode ...int) {
 }
 
 func LogHeader(content interface{}, mode ...int) {
-	fmt.Println("=======" + transform(fmt.Sprintf("%v", content), mode...) + "=======")
+	c := color.New(color.FgBlack).Add(color.Bold)
+	c.Println("=======" + transform(fmt.Sprintf("%v", content), mode...) + "=======")
 }
 
 func LogProgress(content interface{}, mode ...int) {
-	fmt.Println("======>" + transform(fmt.Sprintf("%v", content), mode...) + "...")
+	color.Cyan("======>" + transform(fmt.Sprintf("%v", content), mode...) + "...")
 }
 
 func LogWarning(content interface{}, mode ...int) {
-	fmt.Println("*******" + transform(fmt.Sprintf("%v", content), mode...) + "*******")
+	color.Yellow(transform(fmt.Sprintf("%v", content), mode...))
 }
 
 func LogError(content interface{}, mode ...int) {
-	fmt.Println("@@@@@@@" + transform(fmt.Sprintf("%v", content), mode...) + "@@@@@@@")
+	color.Red(transform(fmt.Sprintf("%v", content), mode...))
 }
 
 func LogNormal(content interface{}, mode ...int) {

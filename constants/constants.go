@@ -36,6 +36,7 @@ var (
 	DefaultPeriodRoutineWeek   = 7 * 24 * time.Hour
 	DefaultPeriodRoutine30Days = 30 * DefaultPeriodRoutineDay
 	DefaultPeriodPermanent     = 0 * time.Second
+	DefaultTaskExpireTime      = 30 * time.Second
 )
 
 // communication types
@@ -79,6 +80,8 @@ var (
 	ErrConflictRegister   = errors.New("GoCollaborate: found conflict, provider of the service already exists")
 	ErrNoSubscriber       = errors.New("GoCollaborate: subscriber does not exist")
 	ErrConflictSubscriber = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
+	ErrTimeout            = errors.New("GoCollaborate: task timeout error")
+	ErrNoPeers            = errors.New("GoCollaborate: no peer appears in the contact book")
 )
 
 type Header struct {
