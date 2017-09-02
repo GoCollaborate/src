@@ -68,7 +68,6 @@ func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
 		// local registry
 		bk.Publisher.HandleLocal(router, api, tskFunc)
 	}
-	router.HandleFunc("/", handlerFuncBookKeeperEntry)
 	return router
 }
 
@@ -498,10 +497,6 @@ func LaunchClient(endpoint string, port int) (*RPCClient, error) {
 	}
 	agent := &RPCClient{Client: client}
 	return agent, nil
-}
-
-func handlerFuncBookKeeperEntry(w http.ResponseWriter, r *http.Request) {
-	logger.LogNormal("Bookkeeper Println...")
 }
 
 func printProgress(num interface{}, tol interface{}) {

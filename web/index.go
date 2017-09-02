@@ -2,6 +2,7 @@ package web
 
 import (
 	"bufio"
+	"github.com/GoCollaborate/constants"
 	"html/template"
 	"net/http"
 	"os"
@@ -39,11 +40,11 @@ func renderTemplate(w http.ResponseWriter, tmpl string) {
 }
 
 func makePath(path string) string {
-	return filepath.Join("web", "templates", path)
+	return filepath.Join(constants.ProjectUnixDir+"web", "templates", path)
 }
 
 func serveResource(w http.ResponseWriter, req *http.Request) {
-	path := "./static" + req.URL.Path
+	path := constants.ProjectUnixDir + "static" + req.URL.Path
 
 	f, err := os.Open(path)
 	if err != nil {

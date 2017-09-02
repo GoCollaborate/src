@@ -2,6 +2,7 @@ package constants
 
 import (
 	"errors"
+	"os"
 	"time"
 )
 
@@ -113,5 +114,6 @@ const (
 )
 
 var (
-	ProjectDir = "github.com/GoCollaborate/"
+	ProjectDir     = "github.com/GoCollaborate/"
+	ProjectUnixDir = os.Getenv("GOPATH") + "/src/github.com/GoCollaborate/"
 )
