@@ -5,7 +5,7 @@ import (
 )
 
 type TaskContext struct {
-	context map[string]interface{}
+	Context map[string]interface{}
 }
 
 func NewTaskContext(ctx interface{}) *TaskContext {
@@ -14,5 +14,5 @@ func NewTaskContext(ctx interface{}) *TaskContext {
 }
 
 func (this *TaskContext) Entries() map[string]interface{} {
-	return this.context
+	return this.Context
 }

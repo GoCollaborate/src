@@ -17,9 +17,15 @@ const (
 	DefaultContactBookPath = "./contact.json"
 	DefaultLogPath         = "./history.log"
 	DefaultDataStorePath   = "./collaborate.dat"
-	DefaultLogPrefix       = "GoCollaborate/"
+	DefaultLogPrefix       = "GoCollaborate:"
 	CleanHistory           = true
 	DefaultNotCleanHistory = false
+	Mapper                 = "Mapper"
+	Reducer                = "Reducer"
+	Function               = "Function"
+	Shared                 = "Shared"
+	Local                  = "Local"
+	ProjectPath            = "ProjectPath"
 )
 
 // master/worker setting
@@ -82,6 +88,7 @@ var (
 	ErrConflictSubscriber = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
 	ErrTimeout            = errors.New("GoCollaborate: task timeout error")
 	ErrNoPeers            = errors.New("GoCollaborate: no peer appears in the contact book")
+	ErrFunctNotExist      = errors.New("GoCollaborate: no such function found in store")
 )
 
 type Header struct {
@@ -105,6 +112,6 @@ const (
 	JSONAPIVersion = `{"version":"1.0"}`
 )
 
-const (
+var (
 	ProjectDir = "github.com/GoCollaborate/"
 )

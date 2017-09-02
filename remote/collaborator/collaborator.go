@@ -2,6 +2,7 @@ package collaborator
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote/remoteshared"
@@ -53,7 +54,7 @@ func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
 	for _, tskFunc := range bk.Publisher.SharedTasks {
 		// tskFunc is an iterator, and it shouldn't
 		// be accessed during the runtime
-		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc))
+		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc.F))
 		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", api)
 		// shared registry
 		bk.Publisher.HandleShared(router, api, tskFunc)
@@ -62,7 +63,7 @@ func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
 	for _, tskFunc := range bk.Publisher.LocalTasks {
 		// tskFunc is an iterator, and it shouldn't
 		// be accessed during the runtime
-		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc))
+		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc.F))
 		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", api)
 		// local registry
 		bk.Publisher.HandleLocal(router, api, tskFunc)
@@ -112,7 +113,7 @@ func (c *ContactBook) Load() (*ContactBook, error) {
 	var exist bool = false
 	var idx int
 
-	logger.LogNormal("Successfully Load Config File...")
+	logger.LogNormal("Successfully load config file...")
 	logger.LogNormal("Hosts:")
 
 	for i, h := range c.Agents {
@@ -247,13 +248,13 @@ func (c *ContactBook) Bridge() {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
 			if err != nil {
-				logger.LogWarning("Connection Failed While Bridging...")
+				logger.LogWarning("Connection failed while bridging...")
 				continue
 			}
 			var u ContactBook
 			err = client.Signal(c, &u)
 			if err != nil {
-				logger.LogWarning("Calling Method Failed While Bridging...")
+				logger.LogWarning("Calling method failed while bridging...")
 				continue
 			}
 			u.Update(c).WriteStream()
@@ -266,13 +267,13 @@ func (c *ContactBook) Disconnect() {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
 			if err != nil {
-				logger.LogWarning("Connection Failed While Disconnecting...")
+				logger.LogWarning("Connection failed while disconnecting...")
 				continue
 			}
 			var u ContactBook
 			err = client.Disconnect(c, &u)
 			if err != nil {
-				logger.LogWarning("Calling Method Failed While Disconnecting...")
+				logger.LogWarning("Calling method failed while disconnecting...")
 				continue
 			}
 			u.Update(c).WriteStream()
@@ -285,13 +286,13 @@ func (c *ContactBook) Terminate() {
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
 			client, err := LaunchClient(e.IP, e.Port)
 			if err != nil {
-				logger.LogWarning("Connection Failed While Terminating...")
+				logger.LogWarning("Connection failed while terminating...")
 				continue
 			}
 			var u ContactBook
 			err = client.Terminate(c, &u)
 			if err != nil {
-				logger.LogWarning("Calling Method Failed While Terminating...")
+				logger.LogWarning("Calling method failed while terminating...")
 				continue
 			}
 			u.Update(c).WriteStream()
@@ -333,7 +334,8 @@ func (c *ContactBook) Stamp() *ContactBook {
 	return c
 }
 
-func (c *ContactBook) Distribute(sources ...task.Task) ([]task.Task, error) {
+func (bk *BookKeeper) Distribute(sources ...task.Task) ([]task.Task, error) {
+	c := bk.Book
 	var result []task.Task
 	l1 := len(sources)
 	l2 := len(c.Agents)
@@ -345,63 +347,84 @@ func (c *ContactBook) Distribute(sources ...task.Task) ([]task.Task, error) {
 		if (i * l) >= l1 {
 			break
 		}
-		client, err := LaunchClient(e.IP, e.Port)
-		if err != nil {
-			logger.LogWarning("Connection Failed While Disconnecting...")
+		s := sources[(i * l):((i + 1) * l)]
+		if e.GetFullIP() == c.Local.GetFullIP() {
+			bk.Publisher.LocalDistribute(s...)
 			continue
 		}
-		s := sources[(i * l):((i + 1) * l)]
+		client, err := LaunchClient(e.IP, e.Port)
+		if err != nil {
+			logger.LogWarning("Connection failed while connecting...")
+			continue
+		}
 		err = client.Distribute(&s, &result)
 		if err != nil {
-			logger.LogWarning("Calling Method Failed While Terminating...")
+			logger.LogWarning("Calling method failed while terminating...")
 			continue
 		}
 	}
 	return result, nil
 }
 
-func (c *ContactBook) SyncDistribute(sources map[int64]task.Task) (map[int64]task.Task, error) {
-	var result map[int64]task.Task
-	var chs map[int64]chan error
-	var counter int64 = 0
+func (bk *BookKeeper) SyncDistribute(sources map[int64]task.Task) (map[int64]task.Task, error) {
+	var (
+		result  map[int64]task.Task
+		counter int64 = 0
+	)
+
+	c := bk.Book
 	l1 := int64(len(sources))
 	l2 := int64(len(c.Agents))
-	if l2 < 1 {
-		return map[int64]task.Task{}, constants.ErrNoPeers
-	}
 
+	// task channel
+	chs := make([]chan error, l1)
+
+	if l2 < 1 {
+		return result, constants.ErrNoPeers
+	}
+	// waiting for rpc responses
+	printProgress(counter, l1)
 	for i, k := range sources {
-		var l = l1 % l2
+		var l = (l1 + i - 1) % l2
 		if (i * l) >= l1 {
 			break
 		}
 		e := c.Agents[l]
+
+		// publish to local if local agent/agent is down
+		if e.IsEqualTo(&c.Local) || !e.Alive {
+			chs[i] = bk.Publisher.SyncDistribute(k)
+			continue
+		}
+
+		// publish to remote
 		client, err := LaunchClient(e.IP, e.Port)
 		if err != nil {
-			logger.LogWarning("Connection Failed While Disconnecting...")
+			// re-publish to local if failed
+			logger.LogWarning("Connection failed while connecting...")
+			c.Agents[l].Alive = false
+			logger.LogWarning("Republish task to local...")
+			chs[i] = bk.Publisher.SyncDistribute(k)
 			continue
 		}
 		s := make(map[int64]task.Task)
 		s[i] = k
-		// any improvement here? &source will pass all
 		chs[i] = client.SyncDistribute(&s, &result)
 	}
-
-	// waiting for rpc responses
 	for {
-		// todo: add progress(percentage) of executed tasks here
 		for _, ch := range chs {
 			select {
 			case <-ch:
 				counter++
-			default:
-				continue
+				printProgress(counter, l1)
 			}
 		}
 		if counter >= l1 {
 			break
 		}
 	}
+
+	logger.LogProgress("All task responses collected...")
 	return result, nil
 }
 
@@ -479,4 +502,8 @@ func LaunchClient(endpoint string, port int) (*RPCClient, error) {
 
 func handlerFuncBookKeeperEntry(w http.ResponseWriter, r *http.Request) {
 	logger.LogNormal("Bookkeeper Println...")
+}
+
+func printProgress(num interface{}, tol interface{}) {
+	logger.LogProgress("Waiting for task responses[" + fmt.Sprintf("%v", num) + "/" + fmt.Sprintf("%v", tol) + "]...")
 }

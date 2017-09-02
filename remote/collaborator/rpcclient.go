@@ -59,6 +59,7 @@ func (c *RPCClient) Distribute(source *[]task.Task, result *[]task.Task) error {
 func (c *RPCClient) SyncDistribute(source *map[int64]task.Task, result *map[int64]task.Task) chan error {
 	ch := make(chan error)
 	go func() {
+		defer close(ch)
 		err := c.Client.Call("RemoteMethods.SyncDistribute", source, result)
 		if err != nil {
 			logger.LogError("Connection Error:" + err.Error())

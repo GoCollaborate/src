@@ -36,8 +36,3 @@ func DefaultSysVars(sysvars *SysVars) *SysVars {
 	// fill out empty default system variables here
 	return sysvars
 }
-
-// any change of sysvars should be processed through this function call
-func (sysVars *SysVars) SetVar(func(v interface{})) {
-
-}

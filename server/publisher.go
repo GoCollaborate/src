@@ -19,8 +19,13 @@ const (
 type Publisher struct {
 	Workable    Workable
 	Logger      *logger.Logger
-	LocalTasks  []func() (interface{}, []string)
-	SharedTasks []func() (interface{}, []string)
+	LocalTasks  []TskFunc
+	SharedTasks []TskFunc
+}
+
+type TskFunc struct {
+	F       func(w http.ResponseWriter, r *http.Request) task.Task
+	Methods []string
 }
 
 type Workable interface {
@@ -40,11 +45,16 @@ type Workable interface {
 var singleton *Publisher
 var once sync.Once
 
-func GetPublisherInstance(lg *logger.Logger) *Publisher {
+func GetPublisherInstance() *Publisher {
 	once.Do(func() {
-		singleton = &Publisher{Dummy(), lg, *new([]func() (interface{}, []string)), *new([]func() (interface{}, []string))}
+		singleton = &Publisher{Dummy(), nil, *new([]TskFunc), *new([]TskFunc)}
 	})
 	return singleton
+}
+
+func Logger(lg *logger.Logger) {
+	s := *singleton
+	s.Logger = lg
 }
 
 func (p *Publisher) Connect(w Workable) {
@@ -61,36 +71,52 @@ func (p *Publisher) SharedDistribute(tsks ...*task.Task) {
 	}
 }
 
-func (p *Publisher) SyncDistribute(tsks ...task.Task) error {
-	return p.Workable.Done(tsks...)
+func (p *Publisher) SyncDistribute(tsks ...task.Task) chan error {
+	ch := make(chan error)
+
+	go func() {
+		defer close(ch)
+		err := p.Workable.Done(tsks...)
+		if err != nil {
+			logger.LogError("Execution Error:" + err.Error())
+			ch <- err
+		}
+		ch <- nil
+	}()
+	return ch
 }
 
-func (p *Publisher) AddLocal(tsks ...func() (interface{}, []string)) *Publisher {
-	p.LocalTasks = append(p.LocalTasks, tsks...)
+func (p *Publisher) AddLocal(methods []string, tsks ...func(w http.ResponseWriter, r *http.Request) task.Task) *Publisher {
+	tskFuncs := make([]TskFunc, len(tsks))
+	for i, f := range tsks {
+		tskFuncs[i] = TskFunc{f, methods}
+	}
+	p.LocalTasks = append(p.LocalTasks, tskFuncs...)
 	return p
 }
 
-func (p *Publisher) AddShared(tsks ...func() (interface{}, []string)) *Publisher {
-	p.SharedTasks = append(p.SharedTasks, tsks...)
+func (p *Publisher) AddShared(methods []string, tsks ...func(w http.ResponseWriter, r *http.Request) task.Task) *Publisher {
+	tskFuncs := make([]TskFunc, len(tsks))
+	for i, f := range tsks {
+		tskFuncs[i] = TskFunc{f, methods}
+	}
+	p.SharedTasks = append(p.SharedTasks, tskFuncs...)
 	return p
 }
 
-func (p *Publisher) HandleLocal(router *mux.Router, api string, tskFunc func() (interface{}, []string)) *Publisher {
-	_tskFunc, methods := tskFunc()
-	fun := _tskFunc.(func(w http.ResponseWriter, r *http.Request) task.Task)
+func (p *Publisher) HandleLocal(router *mux.Router, api string, tskFunc TskFunc) *Publisher {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-		p.LocalDistribute(fun(w, r))
-	}).Methods(methods...)
+		t := tskFunc.F(w, r)
+		p.LocalDistribute(t)
+	}).Methods(tskFunc.Methods...)
 	return p
 }
 
-func (p *Publisher) HandleShared(router *mux.Router, api string, tskFunc func() (interface{}, []string)) *Publisher {
-	_tskFunc, methods := tskFunc()
-	fun := _tskFunc.(func(w http.ResponseWriter, r *http.Request) task.Task)
+func (p *Publisher) HandleShared(router *mux.Router, api string, tskFunc TskFunc) *Publisher {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-		f := fun(w, r)
-		p.SharedDistribute(&f)
-	}).Methods(methods...)
+		t := tskFunc.F(w, r)
+		p.SharedDistribute(&t)
+	}).Methods(tskFunc.Methods...)
 	return p
 }
 

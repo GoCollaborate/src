@@ -2,6 +2,7 @@ package servershared
 
 import (
 	"fmt"
+	"github.com/GoCollaborate/funcstore"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/server/task"
 )
@@ -23,6 +24,7 @@ type Worker struct {
 }
 
 func (w *Worker) Start() {
+	fs := funcstore.GetFSInstance()
 	go func() {
 		for {
 			select {
@@ -30,27 +32,27 @@ func (w *Worker) Start() {
 				return
 			case tk := <-w.UrgentTasks:
 				logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-				tk.Consumable(tk.Source, tk.Result, tk.Context)
+				fs.Call(tk.Consumable, tk.Source, tk.Result, tk.Context)
 			default:
 				select {
 				case tk := <-w.HighTasks:
 					logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-					tk.Consumable(tk.Source, tk.Result, tk.Context)
+					fs.Call(tk.Consumable, tk.Source, tk.Result, tk.Context)
 				default:
 					select {
 					case tk := <-w.MediumTasks:
 						logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-						tk.Consumable(tk.Source, tk.Result, tk.Context)
+						fs.Call(tk.Consumable, tk.Source, tk.Result, tk.Context)
 					default:
 						select {
 						case tk := <-w.LowTasks:
 							logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-							tk.Consumable(tk.Source, tk.Result, tk.Context)
+							fs.Call(tk.Consumable, tk.Source, tk.Result, tk.Context)
 						default:
 							select {
 							case tk := <-w.BaseTasks:
 								logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-								tk.Consumable(tk.Source, tk.Result, tk.Context)
+								fs.Call(tk.Consumable, tk.Source, tk.Result, tk.Context)
 							default:
 								continue
 							}

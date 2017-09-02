@@ -1,9 +1,9 @@
 package workable
 
 import (
-	"context"
 	"errors"
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/funcstore"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote/collaborator"
 	"github.com/GoCollaborate/server/mapper"
@@ -72,21 +72,15 @@ func (m *Master) Proceed(tsk *task.Task) error {
 		return err
 	}
 
-	maps, err = m.bookkeeper.Book.SyncDistribute(maps)
+	maps, err = m.bookkeeper.SyncDistribute(maps)
 
 	return m.reducer.Reduce(maps, tsk)
 }
 
 // sequentially execute all tasks
 func (m *Master) Done(ts ...task.Task) error {
+	fs := funcstore.GetFSInstance()
 	for _, t := range ts {
-		ctx, cancel := context.WithCancel(context.Background())
-		t.Consumable = func(source []task.Countable, result []task.Countable, tctx *task.TaskContext) bool {
-			defer cancel()
-			b := t.Consumable(source, result, tctx)
-			return b
-		}
-
 		switch t.Priority.GetPriority() {
 		case task.URGENT:
 			m.UrgentTasks <- t
@@ -100,14 +94,13 @@ func (m *Master) Done(ts ...task.Task) error {
 			m.BaseTasks <- t
 		}
 
-		for {
-			select {
-			case <-ctx.Done():
-				break
-			case <-time.After(constants.DefaultTaskExpireTime):
-				return constants.ErrTimeout
-			}
+		select {
+		case <-fs.Listen(t.Consumable):
+			continue
+		case <-time.After(constants.DefaultTaskExpireTime):
+			return constants.ErrTimeout
 		}
+
 	}
 	return nil
 }

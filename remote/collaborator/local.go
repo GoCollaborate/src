@@ -70,12 +70,15 @@ func (l *LocalMethods) Distribute(source *[]task.Task, result *[]task.Task) erro
 func (l *LocalMethods) SyncDistribute(source *map[int64]task.Task, result *map[int64]task.Task) error {
 	logger.LogNormal("SyncDistribute...")
 	s := *source
+	r := s
+
 	for i, m := range s {
 		err := l.workable.Done(m)
 		if err != nil {
 			return err
 		}
-		(*result)[i] = m
+		r[i] = m
 	}
+	result = &r
 	return nil
 }
