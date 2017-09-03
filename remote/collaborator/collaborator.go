@@ -333,13 +333,13 @@ func (c *ContactBook) Stamp() *ContactBook {
 	return c
 }
 
-func (bk *BookKeeper) Distribute(sources ...task.Task) ([]task.Task, error) {
+func (bk *BookKeeper) Distribute(sources ...*task.Task) ([]*task.Task, error) {
 	c := bk.Book
-	var result []task.Task
+	var result []*task.Task
 	l1 := len(sources)
 	l2 := len(c.Agents)
 	if l2 < 1 {
-		return []task.Task{}, constants.ErrNoPeers
+		return []*task.Task{}, constants.ErrNoPeers
 	}
 	for i, e := range c.Agents {
 		var l = l1 % l2
@@ -356,7 +356,7 @@ func (bk *BookKeeper) Distribute(sources ...task.Task) ([]task.Task, error) {
 			logger.LogWarning("Connection failed while connecting...")
 			continue
 		}
-		err = client.Distribute(&s, &result)
+		err = client.Distribute(s, &result)
 		if err != nil {
 			logger.LogWarning("Calling method failed while terminating...")
 			continue
@@ -365,18 +365,17 @@ func (bk *BookKeeper) Distribute(sources ...task.Task) ([]task.Task, error) {
 	return result, nil
 }
 
-func (bk *BookKeeper) SyncDistribute(sources map[int64]task.Task) (map[int64]task.Task, error) {
-	var (
-		result  map[int64]task.Task
-		counter int64 = 0
-	)
-
+func (bk *BookKeeper) SyncDistribute(sources map[int64]*task.Task) (map[int64]*task.Task, error) {
 	c := bk.Book
 	l1 := int64(len(sources))
 	l2 := int64(len(c.Agents))
+	var (
+		result  map[int64]*task.Task = make(map[int64]*task.Task)
+		counter int64                = 0
+	)
 
 	// task channel
-	chs := make([]chan error, l1)
+	chs := make([]chan *task.Task, l1)
 
 	if l2 < 1 {
 		return result, constants.ErrNoPeers
@@ -392,7 +391,9 @@ func (bk *BookKeeper) SyncDistribute(sources map[int64]task.Task) (map[int64]tas
 
 		// publish to local if local agent/agent is down
 		if e.IsEqualTo(&c.Local) || !e.Alive {
-			chs[i] = bk.Publisher.SyncDistribute(k)
+			// copy a pointer for concurrent map access
+			p := *k
+			chs[i] = bk.Publisher.SyncDistribute(&p)
 			continue
 		}
 
@@ -401,20 +402,24 @@ func (bk *BookKeeper) SyncDistribute(sources map[int64]task.Task) (map[int64]tas
 		if err != nil {
 			// re-publish to local if failed
 			logger.LogWarning("Connection failed while connecting...")
-			c.Agents[l].Alive = false
 			logger.LogWarning("Republish task to local...")
-			chs[i] = bk.Publisher.SyncDistribute(k)
+			// copy a pointer for concurrent map access
+			p := *k
+			chs[i] = bk.Publisher.SyncDistribute(&p)
 			continue
 		}
-		s := make(map[int64]task.Task)
+		// copy a pointer for concurrent map access
+		s := make(map[int64]*task.Task)
 		s[i] = k
-		chs[i] = client.SyncDistribute(&s, &result)
+		chs[i] = client.SyncDistribute(&s, &s)
 	}
+	// Wait for responses
 	for {
-		for _, ch := range chs {
+		for i, ch := range chs {
 			select {
-			case <-ch:
+			case t := <-ch:
 				counter++
+				result[int64(i)] = t
 				printProgress(counter, l1)
 			}
 		}

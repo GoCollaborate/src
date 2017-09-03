@@ -34,9 +34,9 @@ type Workable interface {
 	Detach(w *servershared.Worker)
 	LaunchAll() error
 	Launch(ID uint64) error
-	Enqueue(t ...task.Task)
+	Enqueue(t ...*task.Task)
 	Proceed(t *task.Task) error
-	Done(...task.Task) error
+	Done(...*task.Task) error
 	CountTasks() []int
 	CountWorkers() int
 	Close() bool
@@ -61,7 +61,7 @@ func (p *Publisher) Connect(w Workable) {
 	p.Workable = w
 }
 
-func (p *Publisher) LocalDistribute(tsks ...task.Task) {
+func (p *Publisher) LocalDistribute(tsks ...*task.Task) {
 	p.Workable.Enqueue(tsks...)
 }
 
@@ -71,17 +71,19 @@ func (p *Publisher) SharedDistribute(tsks ...*task.Task) {
 	}
 }
 
-func (p *Publisher) SyncDistribute(tsks ...task.Task) chan error {
-	ch := make(chan error)
+func (p *Publisher) SyncDistribute(tsks ...*task.Task) chan *task.Task {
+	ch := make(chan *task.Task)
 
 	go func() {
 		defer close(ch)
 		err := p.Workable.Done(tsks...)
 		if err != nil {
 			logger.LogError("Execution Error:" + err.Error())
-			ch <- err
+			ch <- &task.Task{}
 		}
-		ch <- nil
+		for _, t := range tsks {
+			ch <- t
+		}
 	}()
 	return ch
 }
@@ -107,7 +109,7 @@ func (p *Publisher) AddShared(methods []string, tsks ...func(w http.ResponseWrit
 func (p *Publisher) HandleLocal(router *mux.Router, api string, tskFunc TskFunc) *Publisher {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
 		t := tskFunc.F(w, r)
-		p.LocalDistribute(t)
+		p.LocalDistribute(&t)
 	}).Methods(tskFunc.Methods...)
 	return p
 }
@@ -152,11 +154,11 @@ func (d *dummyWorkable) Launch(ID uint64) error {
 	return nil
 }
 
-func (d *dummyWorkable) Enqueue(t ...task.Task) {
+func (d *dummyWorkable) Enqueue(t ...*task.Task) {
 	return
 }
 
-func (d *dummyWorkable) Done(...task.Task) error {
+func (d *dummyWorkable) Done(...*task.Task) error {
 	return nil
 }
 

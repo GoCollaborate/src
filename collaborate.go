@@ -34,8 +34,8 @@ func Set(key string, val ...interface{}) {
 	case constants.Function:
 		// register function
 		fs := funcstore.GetFSInstance()
-		f := val[0].(func(source []task.Countable,
-			result []task.Countable,
+		f := val[0].(func(source *[]task.Countable,
+			result *[]task.Countable,
 			context *task.TaskContext) chan bool)
 		if len(val) > 1 {
 			fs.Add(f, val[1].(string))

@@ -18,11 +18,11 @@ type Master struct {
 	Count       uint64
 	List        map[uint64]*servershared.Worker
 	Logger      *logger.Logger
-	BaseTasks   chan task.Task
-	LowTasks    chan task.Task
-	MediumTasks chan task.Task
-	HighTasks   chan task.Task
-	UrgentTasks chan task.Task
+	BaseTasks   chan *task.Task
+	LowTasks    chan *task.Task
+	MediumTasks chan *task.Task
+	HighTasks   chan *task.Task
+	UrgentTasks chan *task.Task
 	mapper      mapper.Mapper
 	reducer     reducer.Reducer
 	bookkeeper  *collaborator.BookKeeper
@@ -33,12 +33,12 @@ type MasterContext struct {
 
 func NewMaster(bkp *collaborator.BookKeeper, args ...*logger.Logger) *Master {
 	if len(args) > 0 {
-		return &Master{0, make(map[uint64]*servershared.Worker), args[0], make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), mapper.Default(), reducer.Default(), bkp}
+		return &Master{0, make(map[uint64]*servershared.Worker), args[0], make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), mapper.Default(), reducer.Default(), bkp}
 	}
-	return &Master{0, make(map[uint64]*servershared.Worker), nil, make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), make(chan task.Task), mapper.Default(), reducer.Default(), bkp}
+	return &Master{0, make(map[uint64]*servershared.Worker), nil, make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), mapper.Default(), reducer.Default(), bkp}
 }
 
-func (m *Master) Enqueue(ts ...task.Task) {
+func (m *Master) Enqueue(ts ...*task.Task) {
 	for _, t := range ts {
 		switch t.Priority.GetPriority() {
 		case task.URGENT:
@@ -78,7 +78,7 @@ func (m *Master) Proceed(tsk *task.Task) error {
 }
 
 // sequentially execute all tasks
-func (m *Master) Done(ts ...task.Task) error {
+func (m *Master) Done(ts ...*task.Task) error {
 	fs := funcstore.GetFSInstance()
 	for _, t := range ts {
 		switch t.Priority.GetPriority() {

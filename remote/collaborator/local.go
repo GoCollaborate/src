@@ -59,18 +59,17 @@ func (l *LocalMethods) Terminate(arg *ContactBook, update *ContactBook) error {
 	return nil
 }
 
-func (l *LocalMethods) Distribute(source *[]task.Task, result *[]task.Task) error {
+func (l *LocalMethods) Distribute(source []*task.Task, result *[]*task.Task) error {
 	logger.LogNormal("Distribute...")
-	s := *source
-	l.workable.Enqueue(s...)
-	result = &s
+	l.workable.Enqueue(source...)
+	result = &source
 	return nil
 }
 
-func (l *LocalMethods) SyncDistribute(source *map[int64]task.Task, result *map[int64]task.Task) error {
+func (l *LocalMethods) SyncDistribute(source *map[int64]*task.Task, result *map[int64]*task.Task) error {
 	logger.LogNormal("SyncDistribute...")
 	s := *source
-	r := s
+	r := make(map[int64]*task.Task)
 
 	for i, m := range s {
 		err := l.workable.Done(m)
@@ -79,6 +78,6 @@ func (l *LocalMethods) SyncDistribute(source *map[int64]task.Task, result *map[i
 		}
 		r[i] = m
 	}
-	result = &r
+	*result = r
 	return nil
 }

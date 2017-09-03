@@ -64,6 +64,10 @@ type Task struct {
 	Context    *TaskContext
 }
 
+type Wrapper struct {
+	Result map[int64]*Task
+}
+
 type Countable interface{}
 
 type Chunk interface{}
