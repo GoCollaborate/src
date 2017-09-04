@@ -28,9 +28,6 @@ type Master struct {
 	bookkeeper  *collaborator.BookKeeper
 }
 
-type MasterContext struct {
-}
-
 func NewMaster(bkp *collaborator.BookKeeper, args ...*logger.Logger) *Master {
 	if len(args) > 0 {
 		return &Master{0, make(map[uint64]*servershared.Worker), args[0], make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), mapper.Default(), reducer.Default(), bkp}

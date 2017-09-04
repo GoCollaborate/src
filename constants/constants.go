@@ -24,6 +24,7 @@ const (
 	Mapper                 = "Mapper"
 	Reducer                = "Reducer"
 	Function               = "Function"
+	HashFunction           = "HashFunction"
 	Shared                 = "Shared"
 	Local                  = "Local"
 	ProjectPath            = "ProjectPath"
@@ -33,6 +34,11 @@ const (
 const (
 	DefaultWorkerPerMaster = 10
 	DefaultHost            = "localhost"
+)
+
+// funcstore setting
+const (
+	DefaultHashLength = 12
 )
 
 var (

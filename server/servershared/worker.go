@@ -7,11 +7,6 @@ import (
 	"github.com/GoCollaborate/server/task"
 )
 
-type Element interface {
-	Start()
-	Quit()
-}
-
 type Worker struct {
 	ID          uint64
 	Alive       bool

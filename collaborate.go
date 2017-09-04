@@ -24,7 +24,7 @@ import (
 var singleton *Vars
 var once sync.Once
 
-func Set(key string, val ...interface{}) {
+func Set(key string, val ...interface{}) interface{} {
 	Init()
 	switch key {
 	case constants.Mapper:
@@ -42,6 +42,13 @@ func Set(key string, val ...interface{}) {
 			break
 		}
 		fs.Add(f)
+	case constants.HashFunction:
+		// register hash function
+		fs := funcstore.GetFSInstance()
+		f := val[0].(func(source *[]task.Countable,
+			result *[]task.Countable,
+			context *task.TaskContext) chan bool)
+		return fs.HAdd(f)
 	case constants.Shared:
 		pbls := server.GetPublisherInstance()
 
@@ -67,6 +74,7 @@ func Set(key string, val ...interface{}) {
 	case constants.ProjectPath:
 		constants.ProjectDir = val[0].(string)
 	}
+	return nil
 }
 
 func Run(vars ...*Vars) {

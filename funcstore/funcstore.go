@@ -40,6 +40,15 @@ func (fs *FS) Add(f func(source *[]task.Countable,
 	fs.Outbound[i] = make(chan bool)
 }
 
+func (fs *FS) HAdd(f func(source *[]task.Countable,
+	result *[]task.Countable,
+	context *task.TaskContext) chan bool) (hash string) {
+	hash = utils.RandStringBytesMaskImprSrc(constants.DefaultHashLength)
+	fs.Funcs[hash] = f
+	fs.Outbound[hash] = make(chan bool)
+	return
+}
+
 func (fs *FS) Call(id string, source *[]task.Countable,
 	result *[]task.Countable,
 	context *task.TaskContext) {

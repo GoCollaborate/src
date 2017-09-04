@@ -5,6 +5,8 @@ GoCollaborate is an universal framework for distributed services management that
 GoCollaborate absorbs the best practice experience from popular distributed services frameworks like[✨Hadoop](https://hadoop.apache.org/), [✨ZooKeeper](https://zookeeper.apache.org/), [✨Dubbo](http://dubbo.io/) and [✨Kite](https://github.com/koding/kite) that helps to ideally resolve the communication and collaboration issues among multiple isolated peer servers.
 ## Am I Free to Use GoCollaborate?
 Yes! Please check out the terms of the BSD License.
+## Contribution
+This project is currently under development, please feel free to fork it and report issues!
 ## Documents
 ![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 ## Relative Links
