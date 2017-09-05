@@ -50,6 +50,7 @@ var (
 	DefaultPeriodRoutine30Days = 30 * DefaultPeriodRoutineDay
 	DefaultPeriodPermanent     = 0 * time.Second
 	DefaultTaskExpireTime      = 30 * time.Second
+	DefaultGCInterval          = 30 * time.Second
 )
 
 // communication types

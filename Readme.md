@@ -7,11 +7,15 @@ GoCollaborate absorbs the best practice experience from popular distributed serv
 Yes! Please check out the terms of the BSD License.
 ## Contribution
 This project is currently under development, please feel free to fork it and report issues!
-## Documents
+## Documents(In Construction...)
 ![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 ## Relative Links
 - [Source code](https://github.com/HastingsYoung/GoCollaborate)
 - [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
+## Updates
+### 0.1.5
+- Refine logging format
+- Support automatic garbage collection for hash functions
 ## Quick Start
 ### Installation
 ```sh
@@ -29,11 +33,13 @@ touch simpleTaskHandler.go
 ```
 The project structure now looks something like this:
 ```
-- Your_Project_Name
-	- core
-		- simpleTaskHandler.go
-	- contact.json
-	- main.go
+[Your_Project_Name]
+┬
+├ [core]
+	┬
+	└ simpleTaskHandler.go
+├ contact.json
+└ main.go
 ```
 Configure file `contact.json`:
 ```js
@@ -200,3 +206,9 @@ http://localhost:8080/core/ExampleTaskHandler
 // and 
 http://localhost:8081/core/ExampleTaskHandler
 ```
+
+## Acknowledgement
+- [fatih/color](https://github.com/fatih/color)
+- [mattn/go-colorable](https://github.com/mattn/go-colorable)
+- [mattn/go-isatty](https://github.com/mattn/go-isatty)
+- [gorilla/mux](https://github.com/gorilla/mux)

@@ -73,7 +73,7 @@ func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
 
 // current RPC port
 func Default() *remoteshared.Agent {
-	return &remoteshared.Agent{"localhost", GetPort(), true, ""}
+	return &remoteshared.Agent{utils.GetLocalIP(), utils.GetPort(), true, ""}
 }
 
 // local is the local config of server
@@ -106,8 +106,8 @@ func (c *ContactBook) Load() (*ContactBook, error) {
 	}
 
 	logger.LogNormal("Localaddress:")
-	ip := GetLocalIP()
-	logger.LogNormal(ip)
+	ip := utils.GetLocalIP()
+	logger.LogListPoint(ip)
 
 	var exist bool = false
 	var idx int
@@ -120,7 +120,7 @@ func (c *ContactBook) Load() (*ContactBook, error) {
 			exist = true
 			idx = i
 		}
-		logger.LogNormal(h.GetFullIP())
+		logger.LogListPoint(h.GetFullIP())
 	}
 
 	// update if not exist
@@ -347,7 +347,7 @@ func (bk *BookKeeper) Distribute(sources ...*task.Task) ([]*task.Task, error) {
 			break
 		}
 		s := sources[(i * l):((i + 1) * l)]
-		if e.GetFullIP() == c.Local.GetFullIP() {
+		if e.IsEqualTo(&c.Local) {
 			bk.Publisher.LocalDistribute(s...)
 			continue
 		}
@@ -430,36 +430,6 @@ func (bk *BookKeeper) SyncDistribute(sources map[int64]*task.Task) (map[int64]*t
 
 	logger.LogProgress("All task responses collected...")
 	return result, nil
-}
-
-func GetLocalIP() string {
-	addrs, err := net.InterfaceAddrs()
-	if err != nil {
-		return ""
-	}
-	for _, address := range addrs {
-		// check the address type and if it is not a loopback then display it
-		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
-			if ipnet.IP.To4() != nil {
-				return ipnet.IP.String()
-			}
-		}
-	}
-	return ""
-}
-
-func GetPort() int {
-	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
-	if err != nil {
-		panic(err)
-	}
-
-	l, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		panic(err)
-	}
-	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
 }
 
 func Compare(a *ContactBook, b *ContactBook) bool {

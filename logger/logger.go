@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 )
 
 var errorlog *os.File
@@ -59,34 +60,38 @@ func (logger *Logger) LogNormal(content string, mode ...int) {
 
 func LogHeader(content interface{}, mode ...int) {
 	c := color.New(color.FgBlack).Add(color.Bold)
-	c.Println("=======" + transform(fmt.Sprintf("%v", content), mode...) + "=======")
+	c.Println("=======" + transform(fmt.Sprint(content), mode...) + "=======")
 }
 
 func LogProgress(content interface{}, mode ...int) {
-	color.Cyan("======>" + transform(fmt.Sprintf("%v", content), mode...) + "...")
+	color.Cyan("======>" + transform(fmt.Sprint(content), mode...) + "...")
 }
 
 func LogWarning(content interface{}, mode ...int) {
-	color.Yellow(transform(fmt.Sprintf("%v", content), mode...))
+	color.Yellow(now() + ": " + transform(fmt.Sprint(content), mode...))
 }
 
 func LogError(content interface{}, mode ...int) {
-	color.Red(transform(fmt.Sprintf("%v", content), mode...))
+	color.Red(now() + ": " + transform(fmt.Sprint(content), mode...))
 }
 
 func LogNormal(content interface{}, mode ...int) {
-	fmt.Println(transform(fmt.Sprintf("%v", content), mode...))
+	fmt.Println(now() + ": " + transform(fmt.Sprint(content), mode...))
+}
+
+func LogListPoint(content interface{}, mode ...int) {
+	fmt.Printf("                           " + "- " + transform(fmt.Sprint(content), mode...) + "\n")
 }
 
 func LogNormalWithPrefix(mode int, content ...interface{}) {
-	LogNormal(strings.TrimSuffix(fmt.Sprintln(content...), "\n"), mode)
+	LogNormal(fmt.Sprint(content...), mode)
 }
 
 func LogErrorWithPrefix(mode int, content ...interface{}) {
-	LogNormal(strings.TrimSuffix(fmt.Sprintln(content...), "\n"), mode)
+	LogNormal(fmt.Sprint(content...), mode)
 }
 
-func transform(in string, mode ...int) (out string) {
+func transform(in string, mode ...int) string {
 	if len(mode) > 0 {
 		switch mode[0] {
 		case NORMAL:
@@ -102,4 +107,8 @@ func transform(in string, mode ...int) (out string) {
 		}
 	}
 	return in
+}
+
+func now() string {
+	return time.Now().Format(time.RFC3339)
 }

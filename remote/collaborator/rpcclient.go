@@ -3,6 +3,7 @@ package collaborator
 import (
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/server/task"
+	"github.com/GoCollaborate/utils"
 	"net/rpc"
 )
 
@@ -19,7 +20,9 @@ type RPCClient struct {
 }
 
 func (c *RPCClient) Signal(arg *ContactBook, update *ContactBook) error {
+	arg.Local.IP = utils.MapToExposureAddress(arg.Local.IP)
 	err := c.Client.Call("RemoteMethods.Signal", arg, update)
+	update.Local.IP = utils.MapToExposureAddress(update.Local.IP)
 	if err != nil {
 		logger.LogError(err.Error())
 		return err
@@ -28,8 +31,9 @@ func (c *RPCClient) Signal(arg *ContactBook, update *ContactBook) error {
 }
 
 func (c *RPCClient) Disconnect(arg *ContactBook, update *ContactBook) error {
+	arg.Local.IP = utils.MapToExposureAddress(arg.Local.IP)
 	err := c.Client.Call("RemoteMethods.Disconnect", arg, update)
-	logger.LogNormal(update)
+	update.Local.IP = utils.MapToExposureAddress(update.Local.IP)
 	if err != nil {
 		logger.LogError(err.Error())
 		return err
@@ -38,7 +42,9 @@ func (c *RPCClient) Disconnect(arg *ContactBook, update *ContactBook) error {
 }
 
 func (c *RPCClient) Terminate(arg *ContactBook, update *ContactBook) error {
+	arg.Local.IP = utils.MapToExposureAddress(arg.Local.IP)
 	err := c.Client.Call("RemoteMethods.Terminate", arg, update)
+	update.Local.IP = utils.MapToExposureAddress(update.Local.IP)
 	if err != nil {
 		logger.LogError("Connection Error:" + err.Error())
 		return err

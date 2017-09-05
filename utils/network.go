@@ -1,7 +1,8 @@
-package server
+package utils
 
 import (
 	"log"
+	"net"
 	"net/http"
 )
 
@@ -64,4 +65,46 @@ func Adapt(h http.Handler, adapters ...Adapter) http.Handler {
 		h = adapter(h)
 	}
 	return h
+}
+
+func GetLocalIP() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return ""
+	}
+	for _, address := range addrs {
+		// check the address type and if it is not a loopback then display it
+		if ipnet, ok := address.(*net.IPNet); ok && !ipnet.IP.IsLoopback() {
+			if ipnet.IP.To4() != nil {
+				return ipnet.IP.String()
+			}
+		}
+	}
+	return ""
+}
+
+func GetPort() int {
+	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
+	if err != nil {
+		panic(err)
+	}
+
+	l, err := net.ListenTCP("tcp", addr)
+	if err != nil {
+		panic(err)
+	}
+	defer l.Close()
+	return l.Addr().(*net.TCPAddr).Port
+}
+
+func MapToExposureAddress(in string) string {
+	if in == "localhost" {
+		return GetLocalIP()
+	}
+
+	if in == GetLocalIP() {
+		return "localhost"
+	}
+
+	return in
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/restful"
+	"github.com/GoCollaborate/utils"
 	"strconv"
 )
 
@@ -110,10 +111,14 @@ func (c *Agent) GetFullIP() string {
 	return c.IP + ":" + strconv.Itoa(c.Port)
 }
 
+func (c *Agent) GetFullExposureAddress() string {
+	return utils.MapToExposureAddress(c.IP) + ":" + strconv.Itoa(c.Port)
+}
+
 func (c *Agent) GetFullEndPoint() string {
 	return c.IP + ":" + strconv.Itoa(c.Port) + "/" + c.API
 }
 
 func (c *Agent) IsEqualTo(another *Agent) bool {
-	return c.GetFullIP() == another.GetFullIP()
+	return c.GetFullIP() == another.GetFullIP() || c.GetFullExposureAddress() == another.GetFullExposureAddress()
 }
