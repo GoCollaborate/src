@@ -50,12 +50,12 @@ func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 
 	router.HandleFunc("/", web.Index).Methods("GET")
 	router.HandleFunc("/index", web.Index).Methods("GET")
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.ProjectUnixDir+"static/"))))
 	router.HandleFunc("/services", handlerFuncGetServices).Methods("GET")
 	router.HandleFunc("/services/{srvid}", handlerFuncGetService).Methods("GET")
 	// todo: service specific api entry e.g. /services/{srvid}/registry, no id field required
-	router.HandleFunc("/services/registry", handlerFuncRegisterService).Methods("POST")
-	router.HandleFunc("/services/subscription", handlerFuncSubscribeService).Methods("POST")
+	router.HandleFunc("/services/{srvid}/registry", handlerFuncRegisterService).Methods("POST")
+	router.HandleFunc("/services/{srvid}/subscription", handlerFuncSubscribeService).Methods("POST")
 
 	// with http parameters, if the parameters contains url, it should be encoded in base64 format
 	router.HandleFunc("/services/{srvid}/registry/{parjson}", handlerFuncDeRegisterService).Methods("DELETE")
@@ -105,12 +105,11 @@ func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) (string, 
 }
 
 // POST
-func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string, srvID string) (string, error) {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "registry" {
 			agents := remoteshared.UnmarshalAgents(dat.Attributes["agents"].([]interface{}))
-			srvID := dat.ID
 			if _, ok := rc.Services[srvID]; !ok {
 				errPayload := restful.Error404NotFound()
 				mal, er := json.Marshal(errPayload)
@@ -149,12 +148,11 @@ func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string) (string
 }
 
 // POST
-func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID string) (string, error) {
 	var tks []restful.Resource
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "subscription" {
-			srvID := dat.ID
 			if _, ok := rc.Services[srvID]; ok {
 				tk := utils.RandStringBytesMaskImprSrc(RPCTokenLength)
 				err := rc.Services[srvID].Subscribe(tk)
@@ -454,10 +452,10 @@ func (rc *Coordinator) Dump() {
 	// constants.DataStorePath
 	err1 := os.Chmod(constants.DefaultDataStorePath, 0777)
 	if err1 != nil {
-		panic(err1)
+		logger.LogWarning("Create new data source...")
 	}
 	mal, err2 := json.Marshal(&rc)
-	err2 = ioutil.WriteFile(constants.DefaultDataStorePath, mal, os.ModeExclusive)
+	err2 = ioutil.WriteFile(constants.DefaultDataStorePath, mal, os.ModeExclusive|os.ModeAppend)
 	if err2 != nil {
 		panic(err2)
 	}
@@ -539,6 +537,9 @@ func handlerFuncPostServices(w http.ResponseWriter, r *http.Request) {
 // POST
 func handlerFuncRegisterService(w http.ResponseWriter, r *http.Request) {
 	bytes, err := ioutil.ReadAll(r.Body)
+	vars := mux.Vars(r)
+	srvID := vars["srvid"]
+
 	if err != nil {
 		errPayload := restful.Error404NotFound()
 		mal, err := json.Marshal(errPayload)
@@ -550,13 +551,16 @@ func handlerFuncRegisterService(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, rtjs)
 		return
 	}
-	center.RegisterService(w, string(bytes))
+	center.RegisterService(w, string(bytes), srvID)
 	return
 }
 
 // POST
 func handlerFuncSubscribeService(w http.ResponseWriter, r *http.Request) {
 	bytes, err := ioutil.ReadAll(r.Body)
+	vars := mux.Vars(r)
+	srvID := vars["srvid"]
+
 	if err != nil {
 		errPayload := restful.Error404NotFound()
 		mal, err := json.Marshal(errPayload)
@@ -568,7 +572,7 @@ func handlerFuncSubscribeService(w http.ResponseWriter, r *http.Request) {
 		io.WriteString(w, rtjs)
 		return
 	}
-	center.SubscribeService(w, string(bytes))
+	center.SubscribeService(w, string(bytes), srvID)
 	return
 }
 

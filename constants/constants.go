@@ -97,6 +97,8 @@ var (
 	ErrTimeout            = errors.New("GoCollaborate: task timeout error")
 	ErrNoPeers            = errors.New("GoCollaborate: no peer appears in the contact book")
 	ErrFunctNotExist      = errors.New("GoCollaborate: no such function found in store")
+	ErrMapperNotFound     = errors.New("GoCollaborate: no such mapper found in store")
+	ErrReducerNotFound    = errors.New("GoCollaborate: no such reducer found in store")
 )
 
 type Header struct {

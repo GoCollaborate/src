@@ -52,21 +52,15 @@ func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
 	// reflect api endpoint based on exposed task (function) name
 	// once api get called, use distribute
 	for _, tskFunc := range bk.Publisher.SharedTasks {
-		// tskFunc is an iterator, and it shouldn't
-		// be accessed during the runtime
-		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc.F))
-		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", api)
+		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", tskFunc.Signature)
 		// shared registry
-		bk.Publisher.HandleShared(router, api, tskFunc)
+		bk.Publisher.HandleShared(router, tskFunc.Signature, tskFunc)
 	}
 
 	for _, tskFunc := range bk.Publisher.LocalTasks {
-		// tskFunc is an iterator, and it shouldn't
-		// be accessed during the runtime
-		api := utils.StripRouteToAPIRoute(utils.ReflectFuncName(tskFunc.F))
-		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", api)
+		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", tskFunc.Signature)
 		// local registry
-		bk.Publisher.HandleLocal(router, api, tskFunc)
+		bk.Publisher.HandleLocal(router, tskFunc.Signature, tskFunc)
 	}
 	return router
 }

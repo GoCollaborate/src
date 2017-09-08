@@ -23,16 +23,14 @@ type Master struct {
 	MediumTasks chan *task.Task
 	HighTasks   chan *task.Task
 	UrgentTasks chan *task.Task
-	mapper      mapper.Mapper
-	reducer     reducer.Reducer
 	bookkeeper  *collaborator.BookKeeper
 }
 
 func NewMaster(bkp *collaborator.BookKeeper, args ...*logger.Logger) *Master {
 	if len(args) > 0 {
-		return &Master{0, make(map[uint64]*servershared.Worker), args[0], make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), mapper.Default(), reducer.Default(), bkp}
+		return &Master{0, make(map[uint64]*servershared.Worker), args[0], make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), bkp}
 	}
-	return &Master{0, make(map[uint64]*servershared.Worker), nil, make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), mapper.Default(), reducer.Default(), bkp}
+	return &Master{0, make(map[uint64]*servershared.Worker), nil, make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), bkp}
 }
 
 func (m *Master) Enqueue(ts ...*task.Task) {
@@ -52,18 +50,21 @@ func (m *Master) Enqueue(ts ...*task.Task) {
 	}
 }
 
-func (m *Master) Mapper(mp mapper.Mapper) *Master {
-	m.mapper = mp
-	return m
-}
-
-func (m *Master) Reducer(rd reducer.Reducer) *Master {
-	m.reducer = rd
-	return m
-}
-
 func (m *Master) Proceed(tsk *task.Task) error {
-	maps, err := m.mapper.Map(tsk)
+	var (
+		mp   mapper.Mapper
+		rd   reducer.Reducer
+		maps map[int64]*task.Task
+		err  error
+	)
+	fs := funcstore.GetFSInstance()
+	mp, err = fs.GetMapper(tsk.Mapper)
+
+	if err != nil {
+		return err
+	}
+
+	maps, err = mp.Map(tsk)
 
 	if err != nil {
 		return err
@@ -71,7 +72,17 @@ func (m *Master) Proceed(tsk *task.Task) error {
 
 	maps, err = m.bookkeeper.SyncDistribute(maps)
 
-	return m.reducer.Reduce(maps, tsk)
+	if err != nil {
+		return err
+	}
+
+	rd, err = fs.GetReducer(tsk.Reducer)
+
+	if err != nil {
+		return err
+	}
+
+	return rd.Reduce(maps, tsk)
 }
 
 // sequentially execute all tasks

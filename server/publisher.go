@@ -4,6 +4,7 @@ import (
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/server/servershared"
 	"github.com/GoCollaborate/server/task"
+	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"net/http"
 	"sync"
@@ -19,13 +20,14 @@ const (
 type Publisher struct {
 	Workable    Workable
 	Logger      *logger.Logger
-	LocalTasks  []TskFunc
-	SharedTasks []TskFunc
+	LocalTasks  map[string]TskFunc
+	SharedTasks map[string]TskFunc
 }
 
 type TskFunc struct {
-	F       func(w http.ResponseWriter, r *http.Request) task.Task
-	Methods []string
+	F         func(w http.ResponseWriter, r *http.Request) task.Task
+	Methods   []string
+	Signature string
 }
 
 type Workable interface {
@@ -47,7 +49,7 @@ var once sync.Once
 
 func GetPublisherInstance() *Publisher {
 	once.Do(func() {
-		singleton = &Publisher{Dummy(), nil, *new([]TskFunc), *new([]TskFunc)}
+		singleton = &Publisher{Dummy(), nil, make(map[string]TskFunc), make(map[string]TskFunc)}
 	})
 	return singleton
 }
@@ -89,20 +91,18 @@ func (p *Publisher) SyncDistribute(tsks ...*task.Task) chan *task.Task {
 }
 
 func (p *Publisher) AddLocal(methods []string, tsks ...func(w http.ResponseWriter, r *http.Request) task.Task) *Publisher {
-	tskFuncs := make([]TskFunc, len(tsks))
-	for i, f := range tsks {
-		tskFuncs[i] = TskFunc{f, methods}
+	for _, f := range tsks {
+		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
+		p.LocalTasks[signature] = TskFunc{f, methods, signature}
 	}
-	p.LocalTasks = append(p.LocalTasks, tskFuncs...)
 	return p
 }
 
 func (p *Publisher) AddShared(methods []string, tsks ...func(w http.ResponseWriter, r *http.Request) task.Task) *Publisher {
-	tskFuncs := make([]TskFunc, len(tsks))
-	for i, f := range tsks {
-		tskFuncs[i] = TskFunc{f, methods}
+	for _, f := range tsks {
+		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
+		p.SharedTasks[signature] = TskFunc{f, methods, signature}
 	}
-	p.SharedTasks = append(p.SharedTasks, tskFuncs...)
 	return p
 }
 

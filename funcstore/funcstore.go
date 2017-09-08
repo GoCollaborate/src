@@ -3,6 +3,8 @@ package funcstore
 import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/server/mapper"
+	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/utils"
 	"sync"
@@ -25,7 +27,11 @@ func GetFSInstance() *FS {
 	once.Do(func() {
 		singleton = &FS{make(map[string]func(source *[]task.Countable,
 			result *[]task.Countable,
-			context *task.TaskContext) chan bool), make(map[string]chan bool), make(map[string]*color)}
+			context *task.TaskContext) chan bool),
+			make(map[string]chan bool),
+			make(map[string]*color),
+			make(map[string]mapper.Mapper),
+			make(map[string]reducer.Reducer)}
 		singleton.sweep()
 	})
 	return singleton
@@ -37,6 +43,8 @@ type FS struct {
 		context *task.TaskContext) chan bool
 	Outbound map[string]chan bool
 	memstack map[string]*color
+	mappers  map[string]mapper.Mapper
+	reducers map[string]reducer.Reducer
 }
 
 func (fs *FS) Add(f func(source *[]task.Countable,
@@ -94,6 +102,28 @@ func (fs *FS) Listen(id string) chan bool {
 	defer close(out)
 	out <- false
 	return out
+}
+
+func (fs *FS) AddMapper(mp mapper.Mapper, name string) {
+	fs.mappers[name] = mp
+}
+
+func (fs *FS) AddReducer(rd reducer.Reducer, name string) {
+	fs.reducers[name] = rd
+}
+
+func (fs *FS) GetMapper(name string) (mapper.Mapper, error) {
+	if mp := fs.mappers[name]; mp != nil {
+		return mp, nil
+	}
+	return mapper.Default(), constants.ErrMapperNotFound
+}
+
+func (fs *FS) GetReducer(name string) (reducer.Reducer, error) {
+	if rd := fs.reducers[name]; rd != nil {
+		return rd, nil
+	}
+	return reducer.Default(), constants.ErrReducerNotFound
 }
 
 func (fs *FS) sweep() {

@@ -28,9 +28,11 @@ func Set(key string, val ...interface{}) interface{} {
 	Init()
 	switch key {
 	case constants.Mapper:
-		singleton.Mapper = val[0].(mapper.Mapper)
+		fs := funcstore.GetFSInstance()
+		fs.AddMapper(val[0].(mapper.Mapper), val[1].(string))
 	case constants.Reducer:
-		singleton.Reducer = val[0].(reducer.Reducer)
+		fs := funcstore.GetFSInstance()
+		fs.AddReducer(val[0].(reducer.Reducer), val[1].(string))
 	case constants.Function:
 		// register function
 		fs := funcstore.GetFSInstance()
@@ -116,7 +118,7 @@ func Run(vars ...*Vars) {
 
 		mst := workable.NewMaster(bkp, localLogger)
 
-		mst.Mapper(singleton.Mapper).Reducer(singleton.Reducer)
+		// mst.Mapper(singleton.Mapper).Reducer(singleton.Reducer)
 
 		mst.BatchAttach(singleton.MaxRoutines)
 		mst.LaunchAll()
@@ -153,8 +155,6 @@ type Vars struct {
 	DataStorePath   string
 	MaxRoutines     int
 	CleanHistory    bool
-	Mapper          mapper.Mapper
-	Reducer         reducer.Reducer
 }
 
 func Init() {

@@ -62,6 +62,8 @@ type Task struct {
 	Source     []Countable
 	Result     []Countable
 	Context    *TaskContext
+	Mapper     string
+	Reducer    string
 }
 
 type Wrapper struct {
