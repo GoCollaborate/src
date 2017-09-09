@@ -51,6 +51,7 @@ var (
 	DefaultPeriodPermanent     = 0 * time.Second
 	DefaultTaskExpireTime      = 30 * time.Second
 	DefaultGCInterval          = 30 * time.Second
+	DefaultMaxMappingTime      = 600 * time.Second
 )
 
 // communication types
@@ -99,6 +100,7 @@ var (
 	ErrFunctNotExist      = errors.New("GoCollaborate: no such function found in store")
 	ErrMapperNotFound     = errors.New("GoCollaborate: no such mapper found in store")
 	ErrReducerNotFound    = errors.New("GoCollaborate: no such reducer found in store")
+	ErrValNotFound        = errors.New("GoCollaborate: no value found with such key")
 )
 
 type Header struct {

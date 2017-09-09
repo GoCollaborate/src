@@ -369,7 +369,7 @@ func (bk *BookKeeper) SyncDistribute(sources map[int64]*task.Task) (map[int64]*t
 	)
 
 	// task channel
-	chs := make([]chan *task.Task, l1)
+	chs := make(map[int64]chan *task.Task)
 
 	if l2 < 1 {
 		return result, constants.ErrNoPeers

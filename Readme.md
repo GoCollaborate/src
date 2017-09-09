@@ -12,7 +12,11 @@ This project is currently under development, please feel free to fork it and rep
 ## Relative Links
 - [Source code](https://github.com/HastingsYoung/GoCollaborate)
 - [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
-## Updates (Please note that no downward compability will be guarantee before the formal version 1.0.0 release)
+## Updates (Please note that no downward compability will be guaranteed before the formal release 1.0.0 )
+### 0.1.7
+- Support chainning of mappers
+- Support mapper & reducer pipelines
+- Refactor example project structrue
 ### 0.1.6
 - Support task-specific mapper and reducer
 - Update example documents
