@@ -1,7 +1,6 @@
 package coordinator
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
@@ -15,6 +14,7 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -53,17 +53,21 @@ func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.ProjectUnixDir+"static/"))))
 	router.HandleFunc("/services", handlerFuncGetServices).Methods("GET")
 	router.HandleFunc("/services/{srvid}", handlerFuncGetService).Methods("GET")
-	// todo: service specific api entry e.g. /services/{srvid}/registry, no id field required
+	router.HandleFunc("/services/{srvid}", handlerFuncDeleteService).Methods("DELETE")
+
 	router.HandleFunc("/services/{srvid}/registry", handlerFuncRegisterService).Methods("POST")
 	router.HandleFunc("/services/{srvid}/subscription", handlerFuncSubscribeService).Methods("POST")
 
-	// with http parameters, if the parameters contains url, it should be encoded in base64 format
-	router.HandleFunc("/services/{srvid}/registry/{parjson}", handlerFuncDeRegisterService).Methods("DELETE")
-	router.HandleFunc("/services/{srvid}/subscription/{token}", handlerFuncUnSubscribeService).Methods("DELETE")
+	// single deletion [DELETE BODY is not explicitly specified as in HTTP 1.1,
+	// so it's better not to use its message-body]
+	router.HandleFunc("/services/{srvid}/registry/single/{ip}/{port}", handlerFuncDeRegisterService).Methods("DELETE")
+	router.HandleFunc("/services/{srvid}/subscription/single/{token}", handlerFuncUnSubscribeService).Methods("DELETE")
 
-	// without http parameters
+	// bulk deletion
 	router.HandleFunc("/services/{srvid}/registry", handlerFuncDeRegisterServiceAll).Methods("DELETE")
 	router.HandleFunc("/services/{srvid}/subscription", handlerFuncUnSubscribeServiceAll).Methods("DELETE")
+
+	// create services
 	router.HandleFunc("/services", handlerFuncPostServices).Methods("POST")
 	rc.Dump()
 	return router
@@ -187,29 +191,32 @@ func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID 
 }
 
 // DELETE
-func (rc *Coordinator) DeleteService(w http.ResponseWriter, js string) (string, error) {
-	payload := restful.Decode(js)
-	for _, dat := range payload.Data {
-		if dat.Type == "service" {
-			srvID := dat.ID
-			if _, ok := rc.Services[srvID]; ok {
-				delete(rc.Services, srvID)
-				continue
-			}
-			utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-			rtjs := string("")
-			io.WriteString(w, rtjs)
-			return srvID, constants.ErrNoService
+func (rc *Coordinator) DeleteService(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
+	if _, ok := rc.Services[srvID]; ok {
+		services := map[string]*Service{}
+		services[srvID] = center.Services[srvID]
+		payload := restful.Payload{
+			MarshalServiceToStandardResource(services),
+			[]restful.Resource{},
+			restful.Links{
+				Self: r.URL.String(),
+			},
 		}
+		delete(rc.Services, srvID)
+		mal, err := json.Marshal(payload)
+		if err != nil {
+			return "", err
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+		rtjs := string(mal)
+		io.WriteString(w, rtjs)
+		return "", nil
 	}
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
+	utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+	rtjs := string("")
 	io.WriteString(w, rtjs)
-	return "", nil
+	return srvID, constants.ErrNoService
+
 }
 
 // DELETE
@@ -226,9 +233,6 @@ func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request,
 		return srvID, constants.ErrNoService
 	}
 
-	services := map[string]*Service{}
-	services[srvID] = rc.Services[srvID]
-
 	err := rc.Services[srvID].DeRegister(agent)
 	if err != nil {
 		errPayload := restful.Error404NotFound()
@@ -241,7 +245,11 @@ func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request,
 		io.WriteString(w, rtjs)
 		return srvID, err
 	}
-	payload := restful.Payload{
+
+	services := map[string]*Service{}
+	services[srvID] = rc.Services[srvID]
+
+	rtpayload := restful.Payload{
 		MarshalServiceToStandardResource(services),
 		[]restful.Resource{},
 		restful.Links{
@@ -249,10 +257,11 @@ func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request,
 		},
 	}
 
-	mal, errr := json.Marshal(payload)
+	mal, errr := json.Marshal(rtpayload)
 	if errr != nil {
 		return "", errr
 	}
+
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
 	rtjs := string(mal)
 	io.WriteString(w, rtjs)
@@ -307,9 +316,6 @@ func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request
 		return srvID, constants.ErrNoService
 	}
 
-	services := map[string]*Service{}
-	services[srvID] = rc.Services[srvID]
-
 	err := rc.Services[srvID].UnSubscribe(token)
 	if err != nil {
 		errPayload := restful.Error404NotFound()
@@ -322,7 +328,11 @@ func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request
 		io.WriteString(w, rtjs)
 		return srvID, err
 	}
-	payload := restful.Payload{
+
+	services := map[string]*Service{}
+	services[srvID] = rc.Services[srvID]
+
+	rtpayload := restful.Payload{
 		MarshalServiceToStandardResource(services),
 		[]restful.Resource{},
 		restful.Links{
@@ -330,7 +340,7 @@ func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request
 		},
 	}
 
-	mal, errr := json.Marshal(payload)
+	mal, errr := json.Marshal(rtpayload)
 	if errr != nil {
 		return "", errr
 	}
@@ -516,6 +526,13 @@ func handlerFuncGetService(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+// DELETE
+func handlerFuncDeleteService(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	srvID := vars["srvid"]
+	center.DeleteService(w, r, srvID)
+}
+
 // POST
 func handlerFuncPostServices(w http.ResponseWriter, r *http.Request) {
 	bytes, err := ioutil.ReadAll(r.Body)
@@ -594,15 +611,11 @@ func handlerFuncUnSubscribeServiceAll(w http.ResponseWriter, r *http.Request) {
 
 // DELETE
 func handlerFuncDeRegisterService(w http.ResponseWriter, r *http.Request) {
-	// srvid=xxx&ip=xxx&port=xxx&alive=xxx
 	vars := mux.Vars(r)
 	srvID := vars["srvid"]
-	parJSONStr := vars["parjson"]
-	agent, err := UnMarshalRegParJSON(parJSONStr)
-	if err != nil {
-		return
-	}
-	center.DeRegisterService(w, r, srvID, &agent)
+	ip := vars["ip"]
+	port, _ := strconv.Atoi(vars["port"])
+	center.DeRegisterService(w, r, srvID, &remoteshared.Agent{ip, port, true, ""})
 	return
 }
 
@@ -634,17 +647,4 @@ func MarshalServiceToStandardResource(srvs map[string]*Service) []restful.Resour
 			}, []restful.Relationship{}})
 	}
 	return resources
-}
-
-func UnMarshalRegParJSON(bs64 string) (remoteshared.Agent, error) {
-	decoded, err := base64.StdEncoding.DecodeString(bs64)
-	if err != nil {
-		return remoteshared.Agent{}, err
-	}
-	var agt remoteshared.Agent
-	err = json.Unmarshal([]byte(decoded), &agt)
-	if err != nil {
-		return remoteshared.Agent{}, err
-	}
-	return agt, nil
 }

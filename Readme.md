@@ -13,6 +13,10 @@ This project is currently under development, please feel free to fork it and rep
 - [Source code](https://github.com/HastingsYoung/GoCollaborate)
 - [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
 ## Updates (Please note that no downward compability will be guaranteed before the formal release 1.0.0 )
+### 0.1.8
+- Refactor API entry in Coordinator Mode
+- Add documents for Coordinator mode
+- Add command line argument `numwks` to specify number of workers per master program
 ### 0.1.7
 - Support chainning of mappers
 - Support mapper & reducer pipelines

@@ -14,6 +14,7 @@ type SysVars struct {
 	DataStorePath   string
 	MaxRoutines     int
 	CleanHistory    bool
+	WorkerPerMaster int
 }
 
 func InitCmdEnv() *SysVars {
@@ -25,11 +26,12 @@ func InitCmdEnv() *SysVars {
 	dsPath := flag.String("ds", constants.DefaultDataStorePath, "define the path to store GoCollaborate registry data files")
 	mxRoutines := flag.Int("mxrt", constants.DefaultWorkerPerMaster, "define the maximum number of threads working simultaneously to consume tasks, we recommend the number not to be greater than 1000")
 	cleanhis := flag.Bool("clean", constants.DefaultNotCleanHistory, "define if the program should clean previous history while launching up (note: the cleaning is unrecoverable!)")
+	numworkers := flag.Int("numwks", constants.DefaultWorkerPerMaster, "define the number of workers created for each master program)")
 	flag.Parse()
 	if !flag.Parsed() {
 		panic(constants.ErrUnknownCmdArg)
 	}
-	return DefaultSysVars(&SysVars{*svrMode, *debug, *port, *ctBookPath, *logPath, *dsPath, *mxRoutines, *cleanhis})
+	return DefaultSysVars(&SysVars{*svrMode, *debug, *port, *ctBookPath, *logPath, *dsPath, *mxRoutines, *cleanhis, *numworkers})
 }
 
 func DefaultSysVars(sysvars *SysVars) *SysVars {

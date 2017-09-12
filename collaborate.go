@@ -155,6 +155,7 @@ type Vars struct {
 	DataStorePath   string
 	MaxRoutines     int
 	CleanHistory    bool
+	WorkerPerMaster int
 }
 
 func Init() {
@@ -184,5 +185,6 @@ func combine(sysVars *cmd.SysVars, vars ...*Vars) *Vars {
 	v.DataStorePath = s.DataStorePath
 	v.MaxRoutines = s.MaxRoutines
 	v.CleanHistory = s.CleanHistory
+	v.WorkerPerMaster = s.WorkerPerMaster
 	return &v
 }

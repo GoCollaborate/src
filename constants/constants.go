@@ -28,10 +28,6 @@ const (
 	Shared                 = "Shared"
 	Local                  = "Local"
 	ProjectPath            = "ProjectPath"
-)
-
-// master/worker setting
-const (
 	DefaultWorkerPerMaster = 10
 	DefaultHost            = "localhost"
 )
