@@ -1,18 +1,24 @@
 # GoCollaborate
 ## What is GoCollaborate?
 GoCollaborate is an universal framework for distributed services management that you can easily program with, build extension on, and on top of which you can create your own high performance distributed services like a breeze.
-## The Idea Behind
+### The Idea Behind
 GoCollaborate absorbs the best practice experience from popular distributed services frameworks like[✨Hadoop](https://hadoop.apache.org/), [✨ZooKeeper](https://zookeeper.apache.org/), [✨Dubbo](http://dubbo.io/) and [✨Kite](https://github.com/koding/kite) that helps to ideally resolve the communication and collaboration issues among multiple isolated peer servers.
-## Am I Free to Use GoCollaborate?
+### Am I Free to Use GoCollaborate?
 Yes! Please check out the terms of the BSD License.
-## Contribution
+### Contribution
 This project is currently under development, please feel free to fork it and report issues!
-## Documents (In Construction...)
+### Documents (In Construction...)
 ![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
-## Relative Links
+
+Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/) document for more information.
+
+### Relative Links
 - [Source code](https://github.com/HastingsYoung/GoCollaborate)
 - [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
-## Updates (Please note that no downward compability will be guaranteed before the formal release 1.0.0 )
+- [Document](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/)
+## Updates
+**(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
+
 ### 0.1.9
 - Refactor package dependencies
 - Add Job, Stage literals
@@ -46,7 +52,7 @@ mkdir core
 touch contact.json
 touch main.go
 cd ./core
-touch simpleTaskHandler.go
+touch example.go
 ```
 The project structure now looks something like this:
 ```
@@ -54,7 +60,7 @@ The project structure now looks something like this:
 ┬
 ├ [core]
 	┬
-	└ simpleTaskHandler.go
+	└ example.go
 ├ contact.json
 └ main.go
 ```
@@ -114,7 +120,12 @@ import (
 )
 
 func ExampleJobHandler(w http.ResponseWriter, r *http.Request) *task.Job {
+	// create new job
 	job := task.MakeJob()
+
+	// do whatever with http request
+	
+	// multiple tasks will be sorted by stage, tasks at the same stage will be processed in parallel
 	job.Tasks(&task.Task{task.PERMANENT,
 		task.BASE, "exampleFunc",
 		[]task.Countable{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
@@ -122,14 +133,13 @@ func ExampleJobHandler(w http.ResponseWriter, r *http.Request) *task.Job {
 		task.NewTaskContext(struct{}{}),
 		"core.ExampleTask.Mapper",
 		"core.ExampleTask.Reducer", 0})
+
 	return job
 }
 
-func ExampleFunc(source *[]task.Countable,
-	result *[]task.Countable,
-	context *task.TaskContext) chan bool {
+func ExampleFunc(source *[]task.Countable,result *[]task.Countable,context *task.TaskContext) chan bool {
 	out := make(chan bool)
-	// deal with passed in request
+
 	go func() {
 		fmt.Println("Example Task Executed...")
 		var total int
@@ -139,6 +149,7 @@ func ExampleFunc(source *[]task.Countable,
 		*result = append(*result, total)
 		out <- true
 	}()
+
 	return out
 }
 
@@ -155,6 +166,7 @@ func (m *SimpleMapper) Map(t *task.Task) (map[int64]*task.Task, error) {
 	maps[int64(0)] = &task.Task{t.Type, t.Priority, t.Consumable, s1, s4, t.Context, t.Mapper, t.Reducer, t.Stage}
 	maps[int64(1)] = &task.Task{t.Type, t.Priority, t.Consumable, s2, s5, t.Context, t.Mapper, t.Reducer, t.Stage}
 	maps[int64(2)] = &task.Task{t.Type, t.Priority, t.Consumable, s3, s6, t.Context, t.Mapper, t.Reducer, t.Stage}
+
 	return maps, nil
 }
 
@@ -163,14 +175,17 @@ type SimpleReducer int
 func (r *SimpleReducer) Reduce(source map[int64]*task.Task, result *task.Task) error {
 	rs := *result
 	var sum int
+	
 	for _, s := range source {
 		for _, r := range (*s).Result {
 			sum += r.(int)
 		}
 	}
+
 	rs.Result[0] = sum
 	fmt.Printf("The sum of numbers is: %v \n", sum)
 	fmt.Printf("The task result set is: %v", rs)
+
 	return nil
 }
 
@@ -182,7 +197,7 @@ go run main.go -svrmode=clbt
 ```
 The task is now up and running at:
 ```
-http://localhost:8080/core/ExampleTaskHandler
+http://localhost:8080/core/ExampleJobHandler
 ```
 ### Collaborate
 1. Copy your project directory:
@@ -224,9 +239,9 @@ go run main.go -svrmode=clbt -port=8081
 ```
 5. Now the distributed servers are available at:
 ```
-http://localhost:8080/core/ExampleTaskHandler
+http://localhost:8080/core/ExampleJobHandler
 // and 
-http://localhost:8081/core/ExampleTaskHandler
+http://localhost:8081/core/ExampleJobHandler
 ```
 
 ## Acknowledgement
@@ -234,3 +249,4 @@ http://localhost:8081/core/ExampleTaskHandler
 - [mattn/go-colorable](https://github.com/mattn/go-colorable)
 - [mattn/go-isatty](https://github.com/mattn/go-isatty)
 - [gorilla/mux](https://github.com/gorilla/mux)
+- [satori/go.uuid](https://github.com/satori/go.uuid)
