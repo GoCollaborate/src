@@ -3,7 +3,6 @@ package collaborate
 import (
 	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/funcstore"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote/collaborator"
 	"github.com/GoCollaborate/remote/coordinator"
@@ -12,6 +11,7 @@ import (
 	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/server/workable"
+	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"net/http"
@@ -28,14 +28,14 @@ func Set(key string, val ...interface{}) interface{} {
 	Init()
 	switch key {
 	case constants.Mapper:
-		fs := funcstore.GetFSInstance()
-		fs.AddMapper(val[0].(mapper.Mapper), val[1].(string))
+		fs := store.GetInstance()
+		fs.SetMapper(val[0].(mapper.Mapper), val[1].(string))
 	case constants.Reducer:
-		fs := funcstore.GetFSInstance()
-		fs.AddReducer(val[0].(reducer.Reducer), val[1].(string))
+		fs := store.GetInstance()
+		fs.SetReducer(val[0].(reducer.Reducer), val[1].(string))
 	case constants.Function:
 		// register function
-		fs := funcstore.GetFSInstance()
+		fs := store.GetInstance()
 		f := val[0].(func(source *[]task.Countable,
 			result *[]task.Countable,
 			context *task.TaskContext) chan bool)
@@ -46,33 +46,33 @@ func Set(key string, val ...interface{}) interface{} {
 		fs.Add(f)
 	case constants.HashFunction:
 		// register hash function
-		fs := funcstore.GetFSInstance()
+		fs := store.GetInstance()
 		f := val[0].(func(source *[]task.Countable,
 			result *[]task.Countable,
 			context *task.TaskContext) chan bool)
 		return fs.HAdd(f)
 	case constants.Shared:
-		pbls := server.GetPublisherInstance()
+		fs := store.GetInstance()
 
 		methods := val[0].([]string)
-		handlers := make([]func(w http.ResponseWriter, r *http.Request) task.Task, len(val)-1)
+		handlers := make([]func(w http.ResponseWriter, r *http.Request) *task.Job, len(val)-1)
 		for i, v := range val[1:] {
-			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request) task.Task)
+			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request) *task.Job)
 		}
 
-		// register tasks
-		pbls.AddShared(methods, handlers...)
+		// register jobs
+		fs.AddShared(methods, handlers...)
 	case constants.Local:
-		pbls := server.GetPublisherInstance()
+		fs := store.GetInstance()
 
 		methods := val[0].([]string)
-		handlers := make([]func(w http.ResponseWriter, r *http.Request) task.Task, len(val)-1)
+		handlers := make([]func(w http.ResponseWriter, r *http.Request) *task.Job, len(val)-1)
 		for i, v := range val[1:] {
-			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request) task.Task)
+			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request) *task.Job)
 		}
 
-		// register tasks
-		pbls.AddLocal(methods, handlers...)
+		// register jobs
+		fs.AddLocal(methods, handlers...)
 	case constants.ProjectPath:
 		constants.ProjectDir = val[0].(string)
 	}

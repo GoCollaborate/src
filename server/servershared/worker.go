@@ -2,9 +2,9 @@ package servershared
 
 import (
 	"fmt"
-	"github.com/GoCollaborate/funcstore"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/server/task"
+	"github.com/GoCollaborate/store"
 )
 
 type Worker struct {
@@ -19,7 +19,7 @@ type Worker struct {
 }
 
 func (w *Worker) Start() {
-	fs := funcstore.GetFSInstance()
+	fs := store.GetInstance()
 	go func() {
 		for {
 			select {

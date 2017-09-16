@@ -8,6 +8,7 @@ import (
 	"github.com/GoCollaborate/remote/remoteshared"
 	"github.com/GoCollaborate/server"
 	"github.com/GoCollaborate/server/task"
+	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
 	"io/ioutil"
@@ -51,16 +52,17 @@ func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
 	// register tasks existing in publisher
 	// reflect api endpoint based on exposed task (function) name
 	// once api get called, use distribute
-	for _, tskFunc := range bk.Publisher.SharedTasks {
-		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", tskFunc.Signature)
+	fs := store.GetInstance()
+	for _, jobFunc := range fs.SharedJobs {
+		logger.LogNormalWithPrefix(logger.NORMAL, "Job Linked: ", jobFunc.Signature)
 		// shared registry
-		bk.Publisher.HandleShared(router, tskFunc.Signature, tskFunc)
+		bk.HandleShared(router, jobFunc.Signature, jobFunc)
 	}
 
-	for _, tskFunc := range bk.Publisher.LocalTasks {
-		logger.LogNormalWithPrefix(logger.NORMAL, "Task Linked: ", tskFunc.Signature)
+	for _, jobFunc := range fs.LocalJobs {
+		logger.LogNormalWithPrefix(logger.NORMAL, "Job Linked: ", jobFunc.Signature)
 		// local registry
-		bk.Publisher.HandleLocal(router, tskFunc.Signature, tskFunc)
+		bk.HandleLocal(router, jobFunc.Signature, jobFunc)
 	}
 	return router
 }
@@ -154,7 +156,7 @@ func (c *ContactBook) RemoteLoad() (*ContactBook, error) {
 		update = true
 	}
 	if update {
-		localBook.Sync()
+		localBook.WriteStream()
 	}
 	return c, nil
 }
@@ -194,7 +196,7 @@ func (c *ContactBook) RemoteDisconnect() (*ContactBook, error) {
 		}
 	}
 	if update {
-		localBook.Sync()
+		localBook.WriteStream()
 	}
 	return c, nil
 }
@@ -295,12 +297,8 @@ func (c *ContactBook) Terminate() {
 
 // Sync will also update TimeStamp
 func (c *ContactBook) Sync() {
-	c.TimeStamp = time.Now().Unix()
-	mal, err := json.Marshal(&c)
-	err = ioutil.WriteFile(constants.DefaultContactBookPath, mal, os.ModeExclusive)
-	if err != nil {
-		panic(err)
-	}
+	c.Stamp()
+	c.WriteStream()
 }
 
 // Update() does not update TimeStamp
@@ -466,6 +464,24 @@ func LaunchClient(endpoint string, port int) (*RPCClient, error) {
 	}
 	agent := &RPCClient{Client: client}
 	return agent, nil
+}
+
+func (bk *BookKeeper) HandleLocal(router *mux.Router, api string, jobFunc *store.JobFunc) {
+	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
+		job := jobFunc.F(w, r)
+		for s := job.Front(); s != nil; s = s.Next() {
+			bk.Publisher.LocalDistribute(s.TaskSet...)
+		}
+	}).Methods(jobFunc.Methods...)
+}
+
+func (bk *BookKeeper) HandleShared(router *mux.Router, api string, jobFunc *store.JobFunc) {
+	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
+		job := jobFunc.F(w, r)
+		for s := job.Front(); s != nil; s = s.Next() {
+			bk.Publisher.SharedDistribute(s.TaskSet...)
+		}
+	}).Methods(jobFunc.Methods...)
 }
 
 func printProgress(num interface{}, tol interface{}) {

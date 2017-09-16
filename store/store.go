@@ -1,4 +1,4 @@
-package funcstore
+package store
 
 import (
 	"github.com/GoCollaborate/constants"
@@ -7,6 +7,7 @@ import (
 	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/utils"
+	"net/http"
 	"sync"
 	"time"
 )
@@ -23,7 +24,7 @@ const (
 	black
 )
 
-func GetFSInstance() *FS {
+func GetInstance() *FS {
 	once.Do(func() {
 		singleton = &FS{make(map[string]func(source *[]task.Countable,
 			result *[]task.Countable,
@@ -31,7 +32,10 @@ func GetFSInstance() *FS {
 			make(map[string]chan bool),
 			make(map[string]*color),
 			make(map[string]mapper.Mapper),
-			make(map[string]reducer.Reducer)}
+			make(map[string]reducer.Reducer),
+			make(map[string]*task.Job),
+			make(map[string]*JobFunc),
+			make(map[string]*JobFunc)}
 		singleton.sweep()
 	})
 	return singleton
@@ -41,10 +45,19 @@ type FS struct {
 	Funcs map[string]func(source *[]task.Countable,
 		result *[]task.Countable,
 		context *task.TaskContext) chan bool
-	Outbound map[string]chan bool
-	memstack map[string]*color
-	mappers  map[string]mapper.Mapper
-	reducers map[string]reducer.Reducer
+	Outbound   map[string]chan bool
+	memstack   map[string]*color
+	mappers    map[string]mapper.Mapper
+	reducers   map[string]reducer.Reducer
+	jobs       map[string]*task.Job
+	SharedJobs map[string]*JobFunc
+	LocalJobs  map[string]*JobFunc
+}
+
+type JobFunc struct {
+	F         func(w http.ResponseWriter, r *http.Request) *task.Job
+	Methods   []string
+	Signature string
 }
 
 func (fs *FS) Add(f func(source *[]task.Countable,
@@ -104,11 +117,11 @@ func (fs *FS) Listen(id string) chan bool {
 	return out
 }
 
-func (fs *FS) AddMapper(mp mapper.Mapper, name string) {
+func (fs *FS) SetMapper(mp mapper.Mapper, name string) {
 	fs.mappers[name] = mp
 }
 
-func (fs *FS) AddReducer(rd reducer.Reducer, name string) {
+func (fs *FS) SetReducer(rd reducer.Reducer, name string) {
 	fs.reducers[name] = rd
 }
 
@@ -124,6 +137,53 @@ func (fs *FS) GetReducer(name string) (reducer.Reducer, error) {
 		return rd, nil
 	}
 	return reducer.Default(), constants.ErrReducerNotFound
+}
+
+func (fs *FS) SetJob(j *task.Job) {
+	fs.jobs[j.Id()] = j
+}
+
+func (fs *FS) GetJob(id string) (*task.Job, error) {
+	if j := fs.jobs[id]; j != nil {
+		return j, nil
+	}
+	return task.MakeJob(), constants.ErrJobNotExist
+}
+
+func (fs *FS) SetShared(key string, val *JobFunc) {
+	fs.SharedJobs[key] = val
+}
+
+func (fs *FS) SetLocal(key string, val *JobFunc) {
+	fs.LocalJobs[key] = val
+}
+
+func (fs *FS) GetLocal(key string) (*JobFunc, error) {
+	if j := fs.LocalJobs[key]; j != nil {
+		return j, nil
+	}
+	return new(JobFunc), constants.ErrJobNotExist
+}
+
+func (fs *FS) GetShared(key string) (*JobFunc, error) {
+	if j := fs.SharedJobs[key]; j != nil {
+		return j, nil
+	}
+	return new(JobFunc), constants.ErrJobNotExist
+}
+
+func (fs *FS) AddLocal(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request) *task.Job) {
+	for _, f := range jobs {
+		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
+		fs.LocalJobs[signature] = &JobFunc{f, methods, signature}
+	}
+}
+
+func (fs *FS) AddShared(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request) *task.Job) {
+	for _, f := range jobs {
+		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
+		fs.SharedJobs[signature] = &JobFunc{f, methods, signature}
+	}
 }
 
 func (fs *FS) sweep() {

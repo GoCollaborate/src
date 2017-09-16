@@ -13,8 +13,13 @@ This project is currently under development, please feel free to fork it and rep
 - [Source code](https://github.com/HastingsYoung/GoCollaborate)
 - [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
 ## Updates (Please note that no downward compability will be guaranteed before the formal release 1.0.0 )
+### 0.1.9
+- Refactor package dependencies
+- Add Job, Stage literals
+- Support bulk-execution of tasks
+- Update example documents
 ### 0.1.8
-- Refactor API entry in Coordinator Mode
+- Refactor API entry in Coordinator mode
 - Add documents for Coordinator mode
 - Add command line argument `numwks` to specify number of workers per master program
 ### 0.1.7
@@ -91,9 +96,9 @@ func main() {
 	mp := new(core.SimpleMapper)
 	rd := new(core.SimpleReducer)
 	collaborate.Set("Function", core.ExampleFunc, "exampleFunc")
-	collaborate.Set("Mapper", mp, "core.ExampleTaskHandler.Mapper")
-	collaborate.Set("Reducer", rd, "core.ExampleTaskHandler.Reducer")
-	collaborate.Set("Shared", []string{"GET", "POST"}, core.ExampleTaskHandler)
+	collaborate.Set("Mapper", mp, "core.ExampleTask.Mapper")
+	collaborate.Set("Reducer", rd, "core.ExampleTask.Reducer")
+	collaborate.Set("Shared", []string{"GET", "POST"}, core.ExampleJobHandler)
 	collaborate.Run()
 }
 
@@ -108,11 +113,16 @@ import (
 	"net/http"
 )
 
-func ExampleTaskHandler(w http.ResponseWriter, r *http.Request) task.Task {
-	return task.Task{task.PERMANENT,
-		task.BASE, "exampleFunc", []task.Countable{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
+func ExampleJobHandler(w http.ResponseWriter, r *http.Request) *task.Job {
+	job := task.MakeJob()
+	job.Tasks(&task.Task{task.PERMANENT,
+		task.BASE, "exampleFunc",
+		[]task.Countable{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
 		[]task.Countable{0},
-		task.NewTaskContext(struct{}{}), "core.ExampleTaskHandler.Mapper", "core.ExampleTaskHandler.Reducer"}
+		task.NewTaskContext(struct{}{}),
+		"core.ExampleTask.Mapper",
+		"core.ExampleTask.Reducer", 0})
+	return job
 }
 
 func ExampleFunc(source *[]task.Countable,
@@ -142,9 +152,9 @@ func (m *SimpleMapper) Map(t *task.Task) (map[int64]*task.Task, error) {
 	s4 := t.Result
 	s5 := t.Result
 	s6 := t.Result
-	maps[int64(0)] = &task.Task{t.Type, t.Priority, t.Consumable, s1, s4, t.Context, t.Mapper, t.Reducer}
-	maps[int64(1)] = &task.Task{t.Type, t.Priority, t.Consumable, s2, s5, t.Context, t.Mapper, t.Reducer}
-	maps[int64(2)] = &task.Task{t.Type, t.Priority, t.Consumable, s3, s6, t.Context, t.Mapper, t.Reducer}
+	maps[int64(0)] = &task.Task{t.Type, t.Priority, t.Consumable, s1, s4, t.Context, t.Mapper, t.Reducer, t.Stage}
+	maps[int64(1)] = &task.Task{t.Type, t.Priority, t.Consumable, s2, s5, t.Context, t.Mapper, t.Reducer, t.Stage}
+	maps[int64(2)] = &task.Task{t.Type, t.Priority, t.Consumable, s3, s6, t.Context, t.Mapper, t.Reducer, t.Stage}
 	return maps, nil
 }
 

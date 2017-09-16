@@ -4,9 +4,6 @@ import (
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/server/servershared"
 	"github.com/GoCollaborate/server/task"
-	"github.com/GoCollaborate/utils"
-	"github.com/gorilla/mux"
-	"net/http"
 	"sync"
 	"time"
 )
@@ -18,16 +15,8 @@ const (
 )
 
 type Publisher struct {
-	Workable    Workable
-	Logger      *logger.Logger
-	LocalTasks  map[string]TskFunc
-	SharedTasks map[string]TskFunc
-}
-
-type TskFunc struct {
-	F         func(w http.ResponseWriter, r *http.Request) task.Task
-	Methods   []string
-	Signature string
+	Workable Workable
+	Logger   *logger.Logger
 }
 
 type Workable interface {
@@ -37,7 +26,7 @@ type Workable interface {
 	LaunchAll() error
 	Launch(ID uint64) error
 	Enqueue(t ...*task.Task)
-	Proceed(t *task.Task) error
+	Proceed(t ...*task.Task) (*sync.WaitGroup, chan error)
 	Done(...*task.Task) error
 	CountTasks() []int
 	CountWorkers() int
@@ -49,7 +38,7 @@ var once sync.Once
 
 func GetPublisherInstance() *Publisher {
 	once.Do(func() {
-		singleton = &Publisher{Dummy(), nil, make(map[string]TskFunc), make(map[string]TskFunc)}
+		singleton = &Publisher{Dummy(), nil}
 	})
 	return singleton
 }
@@ -68,8 +57,17 @@ func (p *Publisher) LocalDistribute(tsks ...*task.Task) {
 }
 
 func (p *Publisher) SharedDistribute(tsks ...*task.Task) {
-	for _, t := range tsks {
-		p.Workable.Proceed(t)
+	wg, ch := p.Workable.Proceed(tsks...)
+
+	// wait until all tasks processed
+	wg.Wait()
+	close(ch)
+
+	// range over the channel
+	for e := range ch {
+		if e != nil {
+			logger.LogError("Execution Error:" + e.Error())
+		}
 	}
 }
 
@@ -88,38 +86,6 @@ func (p *Publisher) SyncDistribute(tsks ...*task.Task) chan *task.Task {
 		}
 	}()
 	return ch
-}
-
-func (p *Publisher) AddLocal(methods []string, tsks ...func(w http.ResponseWriter, r *http.Request) task.Task) *Publisher {
-	for _, f := range tsks {
-		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
-		p.LocalTasks[signature] = TskFunc{f, methods, signature}
-	}
-	return p
-}
-
-func (p *Publisher) AddShared(methods []string, tsks ...func(w http.ResponseWriter, r *http.Request) task.Task) *Publisher {
-	for _, f := range tsks {
-		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
-		p.SharedTasks[signature] = TskFunc{f, methods, signature}
-	}
-	return p
-}
-
-func (p *Publisher) HandleLocal(router *mux.Router, api string, tskFunc TskFunc) *Publisher {
-	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-		t := tskFunc.F(w, r)
-		p.LocalDistribute(&t)
-	}).Methods(tskFunc.Methods...)
-	return p
-}
-
-func (p *Publisher) HandleShared(router *mux.Router, api string, tskFunc TskFunc) *Publisher {
-	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-		t := tskFunc.F(w, r)
-		p.SharedDistribute(&t)
-	}).Methods(tskFunc.Methods...)
-	return p
 }
 
 func Delay(sec time.Duration) {
@@ -174,6 +140,6 @@ func (d *dummyWorkable) Close() bool {
 	return false
 }
 
-func (d *dummyWorkable) Proceed(tsk *task.Task) error {
-	return nil
+func (d *dummyWorkable) Proceed(tsks ...*task.Task) (*sync.WaitGroup, chan error) {
+	return &sync.WaitGroup{}, nil
 }

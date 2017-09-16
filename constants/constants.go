@@ -32,7 +32,7 @@ const (
 	DefaultHost            = "localhost"
 )
 
-// funcstore setting
+// store setting
 const (
 	DefaultHashLength = 12
 )
@@ -94,6 +94,7 @@ var (
 	ErrTimeout            = errors.New("GoCollaborate: task timeout error")
 	ErrNoPeers            = errors.New("GoCollaborate: no peer appears in the contact book")
 	ErrFunctNotExist      = errors.New("GoCollaborate: no such function found in store")
+	ErrJobNotExist        = errors.New("GoCollaborate: no sucn job found in store")
 	ErrMapperNotFound     = errors.New("GoCollaborate: no such mapper found in store")
 	ErrReducerNotFound    = errors.New("GoCollaborate: no such reducer found in store")
 	ErrValNotFound        = errors.New("GoCollaborate: no value found with such key")

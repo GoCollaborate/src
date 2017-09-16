@@ -45,7 +45,7 @@ func (mp *BaseChainMapper) Map(t *task.Task) (map[int64]*task.Task, error) {
 	for _, m := range mp.mappers {
 		if m != nil {
 			if !init {
-				t.Context.Set("index", int64(0))
+				t.Context.Set("__index", int64(0))
 				maps, err = m.Map(t)
 				init = true
 				if err != nil {
@@ -58,7 +58,7 @@ func (mp *BaseChainMapper) Map(t *task.Task) (map[int64]*task.Task, error) {
 				wait := make(chan bool)
 				for k_m, mm := range cpmap {
 					go func() {
-						mm.Context.Set("index", k_m)
+						mm.Context.Set("__index", k_m)
 						_maps, err := m.Map(mm)
 
 						if err != nil {
