@@ -1,8 +1,8 @@
 package collaborator
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote/remoteshared"
@@ -11,356 +11,219 @@ import (
 	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/rpc"
-	"os"
 	"strconv"
 	"time"
 )
 
-type BookKeeper struct {
-	Book      ContactBook
-	Publisher *server.Publisher `json:"-"`
-	Workable  server.Workable   `json:"-"`
-	Logger    *logger.Logger    `json:"-"`
+// Collaborator is a helper struct to operate on any inner trxs
+type Collaborator struct {
+	CardCase  Case
+	Publisher *server.Publisher
+	Workable  server.Workable
+	Logger    *logger.Logger
 }
 
-func NewBookKeeper(pbls *server.Publisher, localLogger *logger.Logger) *BookKeeper {
-	return &BookKeeper{ContactBook{}, pbls, server.Dummy(), localLogger}
+func NewCollaborator(pbls *server.Publisher, localLogger *logger.Logger) *Collaborator {
+	return &Collaborator{*newCase(), pbls, server.Dummy(), localLogger}
 }
 
-func (bk *BookKeeper) NewBook() {
-	bk.Book = ContactBook{[]remoteshared.Agent{}, remoteshared.Agent{}, *Default(), false, false, time.Now().Unix()}
+func newCase() *Case {
+	return &Case{cmd.Vars().CaseID, Exposed{make(map[string]remoteshared.Card), time.Now().Unix()}, Reserved{*remoteshared.Default(), remoteshared.Card{}}}
 }
 
-func (bk *BookKeeper) Watch(wk server.Workable) {
-	bk.Workable = wk
-	bk.Book.Load()
-	bk.LaunchServer()
-	// bridge to remote servers
-	bk.Book.Bridge()
+func (clbt *Collaborator) Hire(wk server.Workable) {
+	clbt.Workable = wk
+
+	err := populate(&clbt.CardCase)
+	if err != nil {
+		panic(err)
+	}
+
+	logger.LogNormal("Case Identifier:")
+	logger.LogListPoint(clbt.CardCase.CaseID)
+	logger.LogNormal("Local Address:")
+	ip := utils.GetLocalIP()
+	logger.LogListPoint(ip)
+
+	logger.LogNormal("Cards:")
+
+	cp := clbt.CardCase.Cards()
+
+	for _, h := range cp {
+		var alive string
+		if h.Alive {
+			alive = "Alive"
+		} else {
+			alive = "Terminated"
+		}
+		logger.LogListPoint(h.GetFullIP(), alive)
+	}
+
+	local := clbt.CardCase.Local
+
+	if card, ok := clbt.CardCase.Exposed.Cards[local.GetFullIP()]; !ok || !card.IsEqualTo(&local) {
+
+		clbt.CardCase.Exposed.Cards[local.GetFullIP()] = local
+		clbt.CardCase.Stamp()
+		clbt.CardCase.writeStream()
+	}
+
+	clbt.launchServer()
+
+	go func() {
+		// start looking for other peer Collaborators
+		clbt.Catchup()
+
+		for {
+			<-time.After(constants.DefaultSynInterval)
+			err := populate(&clbt.CardCase)
+			if err != nil {
+				panic(err)
+				return
+			}
+			clbt.Catchup()
+			// clean collaborators that are no longer alive
+			clbt.Clean()
+		}
+	}()
 
 	/*
-		terminate the rpc connection at any time by calling Terminate() function
+		stop the rpc connection at any time by calling Disconnect() function
 	*/
-	// contactBook.Terminate()
+	// Case.Disconnect()
 }
 
-func (bk *BookKeeper) Handle(router *mux.Router) *mux.Router {
+// bridge to peer servers
+func (clbt *Collaborator) Catchup() {
+	c := &clbt.CardCase
+
+	cp := c.Cards()
+
+	max := cmd.Vars().GossipNum
+	done := 0
+
+	for key, e := range cp {
+		// stop gossipping if already walk through max nodes
+		if done > max {
+			break
+		}
+
+		if e.Alive && (!e.IsEqualTo(&c.Local)) {
+			client, err := launchClient(e.IP, e.Port)
+
+			if err != nil {
+				logger.LogWarning("Connection failed while bridging")
+				override := c.Exposed.Cards[key]
+				override.Alive = false
+				c.Exposed.Cards[key] = override
+				c.writeStream()
+				continue
+			}
+
+			from := c.Local.GetFullExposureCard()
+			to := e
+			var in *remoteshared.CardMessage = remoteshared.NewCardMessageWithOptions(c.Cluster(), from, to, c.Cards(), c.TimeStamp())
+			var out *remoteshared.CardMessage = remoteshared.NewCardMessage()
+			err = client.Exchange(in, out)
+
+			if err != nil {
+				logger.LogWarning("Calling method failed while bridging")
+				continue
+			}
+
+			if Compare(c, out) {
+				cs, _ := Merge(c, out)
+				cs.writeStream()
+			}
+		}
+
+		done++
+	}
+}
+
+func (clbt *Collaborator) Clean() {
+	cp := clbt.CardCase.Cards()
+	for k, c := range cp {
+		if !c.Alive {
+			clbt.CardCase.Terminate(k)
+		}
+	}
+	clbt.CardCase.writeStream()
+
+	cp = clbt.CardCase.Cards()
+
+	logger.LogNormal("Cards:")
+	for _, h := range cp {
+		var alive string
+		if h.Alive {
+			alive = "Alive"
+		} else {
+			alive = "Terminated"
+		}
+		logger.LogListPoint(h.GetFullIP(), alive)
+	}
+}
+
+func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 	// register tasks existing in publisher
 	// reflect api endpoint based on exposed task (function) name
 	// once api get called, use distribute
 	fs := store.GetInstance()
 	for _, jobFunc := range fs.SharedJobs {
-		logger.LogNormalWithPrefix(logger.NORMAL, "Job Linked: ", jobFunc.Signature)
+		logger.LogNormalWithPrefix("Job Linked: ", jobFunc.Signature)
 		// shared registry
-		bk.HandleShared(router, jobFunc.Signature, jobFunc)
+		clbt.HandleShared(router, jobFunc.Signature, jobFunc)
 	}
 
 	for _, jobFunc := range fs.LocalJobs {
-		logger.LogNormalWithPrefix(logger.NORMAL, "Job Linked: ", jobFunc.Signature)
+		logger.LogNormalWithPrefix("Job Linked: ", jobFunc.Signature)
 		// local registry
-		bk.HandleLocal(router, jobFunc.Signature, jobFunc)
+		clbt.HandleLocal(router, jobFunc.Signature, jobFunc)
 	}
 	return router
 }
 
-// current RPC port
-func Default() *remoteshared.Agent {
-	return &remoteshared.Agent{utils.GetLocalIP(), utils.GetPort(), true, ""}
-}
-
-// local is the local config of server
-type ContactBook struct {
-	Agents                 []remoteshared.Agent `json:"agents,omitempty"`
-	Local                  remoteshared.Agent   `json:"local,omitempty"`
-	Coordinator            remoteshared.Agent   `json:"coordinator,omitempty"`
-	ForbidPointToPointConn bool                 `json:"forbidPointToPointConn,omitempty"`
-	IsCoordinator          bool                 `json:"isCoordinator,omitempty"`
-	TimeStamp              int64                `json:"timestamp,omitempty"`
-}
-
-func Populate(cfg *ContactBook) error {
-	bytes, err := ioutil.ReadFile(constants.DefaultContactBookPath)
-	if err != nil {
-		panic(err)
-	}
-	// unmarshal, overwrite default if already existed in config file
-	if err := json.Unmarshal(bytes, &cfg); err != nil {
-		logger.LogError(err.Error())
-		return err
-	}
-	return nil
-}
-
-func (c *ContactBook) Load() (*ContactBook, error) {
-	err := Populate(c)
-	if err != nil {
-		return c, err
-	}
-
-	logger.LogNormal("Localaddress:")
-	ip := utils.GetLocalIP()
-	logger.LogListPoint(ip)
-
-	var exist bool = false
-	var idx int
-
-	logger.LogNormal("Successfully load config file...")
-	logger.LogNormal("Hosts:")
-
-	for i, h := range c.Agents {
-		if h.IsEqualTo(&c.Local) {
-			exist = true
-			idx = i
-		}
-		logger.LogListPoint(h.GetFullIP())
-	}
-
-	// update if not exist
-	if !exist {
-		c.Agents = append(c.Agents, c.Local)
-		c.Sync()
-	} else {
-		// activate if not alive
-		if !c.Agents[idx].Alive {
-			c.Agents[idx] = remoteshared.Agent{c.Agents[idx].IP, c.Agents[idx].Port, true, ""}
-			c.Sync()
-		}
-	}
-	return c, nil
-}
-
-func (c *ContactBook) RemoteLoad() (*ContactBook, error) {
-	var localBook *ContactBook = new(ContactBook)
-	err := Populate(localBook)
-	if err != nil {
-		return c, err
-	}
-	var exist bool = false
-	var update bool = false
-
-	update = Compare(localBook, c)
-
-	for _, h := range c.Agents {
-		if h.IsEqualTo(&localBook.Local) {
-			exist = true
-		}
-	}
-	// update if not exist
-	if !exist {
-		c.Agents = append(c.Agents, c.Local)
-		localBook.Agents = append(c.Agents, c.Local)
-		update = true
-	}
-	if update {
-		localBook.WriteStream()
-	}
-	return c, nil
-}
-
-func (c *ContactBook) RemoteDisconnect() (*ContactBook, error) {
-	var localBook *ContactBook = new(ContactBook)
-	err := Populate(localBook)
-	if err != nil {
-		return c, err
-	}
-	var index = -1
-	var update bool = false
-
-	update = Compare(localBook, c)
-
-	for i, h := range c.Agents {
-		if h.IsEqualTo(&c.Local) {
-			index = i
-		}
-	}
-	// update if not exist
-	if index < 0 {
-		c.Agents = append(c.Agents, c.Local)
-		localBook.Agents = append(c.Agents, c.Local)
-		update = true
-	} else {
-		// deactivate if alive
-		if c.Agents[index].Alive {
-			c.Agents[index] = remoteshared.Agent{c.Agents[index].IP, c.Agents[index].Port, false, ""}
-			c.Stamp()
-			for _, a := range localBook.Agents {
-				if a.IsEqualTo(&c.Agents[index]) {
-					a.Alive = false
-				}
-			}
-			update = true
-		}
-	}
-	if update {
-		localBook.WriteStream()
-	}
-	return c, nil
-}
-
-func (c *ContactBook) RemoteTerminate() (*ContactBook, error) {
-	var localBook *ContactBook = new(ContactBook)
-	err := Populate(localBook)
-	if err != nil {
-		return c, err
-	}
-	var index int = -1
-	var update bool = false
-
-	for i, h := range localBook.Agents {
-		if h.IsEqualTo(&c.Local) {
-			index = i
-			update = true
-		}
-	}
-	// update if exist
-	if index >= 0 {
-		localBook.RemoveAgent(index)
-		index = -1
-	}
-	for j, h := range c.Agents {
-		if h.IsEqualTo(&c.Local) {
-			index = j
-		}
-	}
-	if index >= 0 {
-		c.RemoveAgent(index)
-		c.Stamp()
-	}
-
-	if update {
-		localBook.Sync()
-	}
-	return c, nil
-}
-
-// bridge to peer servers
-func (c *ContactBook) Bridge() {
-	for _, e := range c.Agents {
-		if e.Alive && (!e.IsEqualTo(&c.Local)) {
-			client, err := LaunchClient(e.IP, e.Port)
-			if err != nil {
-				logger.LogWarning("Connection failed while bridging...")
-				continue
-			}
-			var u ContactBook
-			err = client.Signal(c, &u)
-			if err != nil {
-				logger.LogWarning("Calling method failed while bridging...")
-				continue
-			}
-			u.Update(c).WriteStream()
-		}
-	}
-}
-
-func (c *ContactBook) Disconnect() {
-	for _, e := range c.Agents {
-		if e.Alive && (!e.IsEqualTo(&c.Local)) {
-			client, err := LaunchClient(e.IP, e.Port)
-			if err != nil {
-				logger.LogWarning("Connection failed while disconnecting...")
-				continue
-			}
-			var u ContactBook
-			err = client.Disconnect(c, &u)
-			if err != nil {
-				logger.LogWarning("Calling method failed while disconnecting...")
-				continue
-			}
-			u.Update(c).WriteStream()
-		}
-	}
-}
-
-func (c *ContactBook) Terminate() {
-	for _, e := range c.Agents {
-		if e.Alive && (!e.IsEqualTo(&c.Local)) {
-			client, err := LaunchClient(e.IP, e.Port)
-			if err != nil {
-				logger.LogWarning("Connection failed while terminating...")
-				continue
-			}
-			var u ContactBook
-			err = client.Terminate(c, &u)
-			if err != nil {
-				logger.LogWarning("Calling method failed while terminating...")
-				continue
-			}
-			u.Update(c).WriteStream()
-		}
-	}
-}
-
-// Sync will also update TimeStamp
-func (c *ContactBook) Sync() {
-	c.Stamp()
-	c.WriteStream()
-}
-
-// Update() does not update TimeStamp
-func (c *ContactBook) Update(update *ContactBook) (cfg *ContactBook) {
-	Compare(update, c)
-	return c
-}
-
-func (c *ContactBook) WriteStream() {
-	mal, err := json.Marshal(&c)
-	err = ioutil.WriteFile(constants.DefaultContactBookPath, mal, os.ModeExclusive)
-	if err != nil {
-		logger.LogError(err)
-	}
-}
-
-func (c *ContactBook) RemoveAgent(index int) *ContactBook {
-	c.Agents = append(c.Agents[:(index)], c.Agents[(index+1):]...)
-	return c
-}
-
-func (c *ContactBook) Stamp() *ContactBook {
-	c.TimeStamp = time.Now().Unix()
-	return c
-}
-
-func (bk *BookKeeper) Distribute(sources ...*task.Task) ([]*task.Task, error) {
-	c := bk.Book
+func (clbt *Collaborator) Distribute(sources ...*task.Task) ([]*task.Task, error) {
+	b := clbt.CardCase
 	var result []*task.Task
-	l1 := len(sources)
-	l2 := len(c.Agents)
+	l1 := int64(len(sources))
+	l2 := int64(len(b.Cards()))
 	if l2 < 1 {
 		return []*task.Task{}, constants.ErrNoPeers
 	}
-	for i, e := range c.Agents {
+	i := int64(-1)
+	for _, e := range b.Cards() {
+		i++
 		var l = l1 % l2
 		if (i * l) >= l1 {
 			break
 		}
 		s := sources[(i * l):((i + 1) * l)]
-		if e.IsEqualTo(&c.Local) {
-			bk.Publisher.LocalDistribute(s...)
+		if e.IsEqualTo(&b.Local) {
+			clbt.Publisher.LocalDistribute(s...)
 			continue
 		}
-		client, err := LaunchClient(e.IP, e.Port)
+		client, err := launchClient(e.IP, e.Port)
 		if err != nil {
-			logger.LogWarning("Connection failed while connecting...")
+			logger.LogWarning("Connection failed while connecting")
 			continue
 		}
 		err = client.Distribute(s, &result)
 		if err != nil {
-			logger.LogWarning("Calling method failed while terminating...")
+			logger.LogWarning("Calling method failed while terminating")
 			continue
 		}
 	}
 	return result, nil
 }
 
-func (bk *BookKeeper) SyncDistribute(sources map[int64]*task.Task) (map[int64]*task.Task, error) {
-	c := bk.Book
+func (clbt *Collaborator) SyncDistribute(sources map[int64]*task.Task) (map[int64]*task.Task, error) {
+	b := clbt.CardCase
 	l1 := int64(len(sources))
-	l2 := int64(len(c.Agents))
+	l2 := int64(len(b.Cards()))
 	var (
 		result  map[int64]*task.Task = make(map[int64]*task.Task)
 		counter int64                = 0
@@ -374,30 +237,32 @@ func (bk *BookKeeper) SyncDistribute(sources map[int64]*task.Task) (map[int64]*t
 	}
 	// waiting for rpc responses
 	printProgress(counter, l1)
-	for i, k := range sources {
+	i := int64(-1)
+	for _, k := range sources {
+		i++
 		var l = (l1 + i - 1) % l2
 		if (i * l) >= l1 {
 			break
 		}
-		e := c.Agents[l]
+		e := b.ReturnByPosInt64(l)
 
-		// publish to local if local agent/agent is down
-		if e.IsEqualTo(&c.Local) || !e.Alive {
+		// publish to local if local Card/Card is down
+		if e.IsEqualTo(&b.Local) || !e.Alive {
 			// copy a pointer for concurrent map access
 			p := *k
-			chs[i] = bk.Publisher.SyncDistribute(&p)
+			chs[i] = clbt.Publisher.SyncDistribute(&p)
 			continue
 		}
 
 		// publish to remote
-		client, err := LaunchClient(e.IP, e.Port)
+		client, err := launchClient(e.IP, e.Port)
 		if err != nil {
 			// re-publish to local if failed
-			logger.LogWarning("Connection failed while connecting...")
-			logger.LogWarning("Republish task to local...")
+			logger.LogWarning("Connection failed while connecting")
+			logger.LogWarning("Republish task to local")
 			// copy a pointer for concurrent map access
 			p := *k
-			chs[i] = bk.Publisher.SyncDistribute(&p)
+			chs[i] = clbt.Publisher.SyncDistribute(&p)
 			continue
 		}
 		// copy a pointer for concurrent map access
@@ -420,70 +285,59 @@ func (bk *BookKeeper) SyncDistribute(sources map[int64]*task.Task) (map[int64]*t
 		}
 	}
 
-	logger.LogProgress("All task responses collected...")
+	logger.LogProgress("All task responses collected")
 	return result, nil
 }
 
-func Compare(a *ContactBook, b *ContactBook) bool {
-	if a.TimeStamp < b.TimeStamp {
-		a.Agents = b.Agents
-		a.TimeStamp = b.TimeStamp
-		return true
-	}
-	b.Agents = a.Agents
-	b.TimeStamp = a.TimeStamp
-	return false
-}
-
-func RegisterRemote(server *rpc.Server, remote RemoteMethods) {
+func registerRemote(server *rpc.Server, remote RemoteMethods) {
 	server.RegisterName("RemoteMethods", remote)
 }
 
-func (c *BookKeeper) LaunchServer() {
+func (c *Collaborator) launchServer() {
 	go func() {
 		methods := NewLocalMethods(c.Workable)
 		server := rpc.NewServer()
-		RegisterRemote(server, methods)
+		registerRemote(server, methods)
 		// debug setup for regcenter to check services alive
 		server.HandleHTTP("/", "debug")
-		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.Book.Local.Port))
+		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.CardCase.Local.Port))
 		if e != nil {
-			logger.LogErrorWithPrefix(logger.NORMAL, "Listen Error:", e)
+			logger.LogErrorWithPrefix("Listen Error:", e)
 		}
 		http.Serve(l, nil)
 	}()
 	return
 }
 
-func LaunchClient(endpoint string, port int) (*RPCClient, error) {
-	clientContact := remoteshared.Agent{endpoint, port, true, ""}
+func launchClient(endpoint string, port int) (*RPCClient, error) {
+	clientContact := remoteshared.Card{endpoint, port, true, ""}
 	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
-		logger.LogErrorWithPrefix(logger.NORMAL, "Dialing:", err)
+		logger.LogErrorWithPrefix("Dialing:", err)
 		return &RPCClient{}, err
 	}
-	agent := &RPCClient{Client: client}
-	return agent, nil
+	Card := &RPCClient{Client: client}
+	return Card, nil
 }
 
-func (bk *BookKeeper) HandleLocal(router *mux.Router, api string, jobFunc *store.JobFunc) {
+func (clbt *Collaborator) HandleLocal(router *mux.Router, api string, jobFunc *store.JobFunc) {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
 		job := jobFunc.F(w, r)
 		for s := job.Front(); s != nil; s = s.Next() {
-			bk.Publisher.LocalDistribute(s.TaskSet...)
+			clbt.Publisher.LocalDistribute(s.TaskSet...)
 		}
 	}).Methods(jobFunc.Methods...)
 }
 
-func (bk *BookKeeper) HandleShared(router *mux.Router, api string, jobFunc *store.JobFunc) {
+func (clbt *Collaborator) HandleShared(router *mux.Router, api string, jobFunc *store.JobFunc) {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
 		job := jobFunc.F(w, r)
 		for s := job.Front(); s != nil; s = s.Next() {
-			bk.Publisher.SharedDistribute(s.TaskSet...)
+			clbt.Publisher.SharedDistribute(s.TaskSet...)
 		}
 	}).Methods(jobFunc.Methods...)
 }
 
 func printProgress(num interface{}, tol interface{}) {
-	logger.LogProgress("Waiting for task responses[" + fmt.Sprintf("%v", num) + "/" + fmt.Sprintf("%v", tol) + "]...")
+	logger.LogProgress("Waiting for task responses[" + fmt.Sprintf("%v", num) + "/" + fmt.Sprintf("%v", tol) + "]")
 }

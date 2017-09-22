@@ -52,6 +52,10 @@ func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 	router.HandleFunc("/index", web.Index).Methods("GET")
 	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.ProjectUnixDir+"static/"))))
 	router.HandleFunc("/services", handlerFuncGetServices).Methods("GET")
+
+	// client launch request to call a service
+	router.HandleFunc("/query/{srvid}/{token}", handlerFuncQueryService).Methods("GET")
+
 	router.HandleFunc("/services/{srvid}", handlerFuncGetService).Methods("GET")
 	router.HandleFunc("/services/{srvid}", handlerFuncDeleteService).Methods("DELETE")
 
@@ -74,7 +78,7 @@ func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 }
 
 // POST
-func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) error {
 	// parse request json and create service here
 	payload := restful.Decode(js)
 	var resData []restful.Resource
@@ -83,7 +87,7 @@ func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) (string, 
 			id := utils.RandStringBytesMaskImprSrc(RPCServiceLength)
 			svrs := Service{id, dat.Attributes["description"].(string),
 				remoteshared.UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
-				remoteshared.UnmarshalAgents(dat.Attributes["registers"].([]interface{})),
+				remoteshared.UnmarshalCards(dat.Attributes["registers"].([]interface{})),
 				remoteshared.UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
 				remoteshared.UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
 				UnmarshalMode(dat.Attributes["mode"]),
@@ -100,59 +104,56 @@ func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) (string, 
 	payload.Data = resData
 	mal, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return err
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header201Created)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return rtjs, nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // POST
-func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string, srvID string) (string, error) {
+func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string, srvID string) error {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "registry" {
-			agents := remoteshared.UnmarshalAgents(dat.Attributes["agents"].([]interface{}))
+			Cards := remoteshared.UnmarshalCards(dat.Attributes["cards"].([]interface{}))
 			if _, ok := rc.Services[srvID]; !ok {
 				errPayload := restful.Error404NotFound()
 				mal, er := json.Marshal(errPayload)
 				if er != nil {
-					return "", er
+					return er
 				}
 				utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-				rtjs := string(mal)
-				io.WriteString(w, rtjs)
-				return srvID, constants.ErrNoService
+				io.WriteString(w, string(mal))
+				return constants.ErrNoService
 			}
-			for _, agent := range agents {
-				err := rc.Services[srvID].Register(&agent)
+			for _, Card := range Cards {
+				err := rc.Services[srvID].Register(&Card)
 				if err != nil {
 					errPayload := restful.Error409Conflict()
 					mal, er := json.Marshal(errPayload)
 					if er != nil {
-						return "", er
+						return er
 					}
 					utils.AdaptHTTPWithHeader(w, constants.Header409Conflict)
 					rtjs := string(mal)
 					io.WriteString(w, rtjs)
-					return srvID, err
+					return err
 				}
 			}
 		}
 	}
 	mal, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return err
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return rtjs, nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // POST
-func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID string) (string, error) {
+func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID string) error {
 	var tks []restful.Resource
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
@@ -164,12 +165,12 @@ func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID 
 					errPayload := restful.Error409Conflict()
 					mal, er := json.Marshal(errPayload)
 					if er != nil {
-						return "", er
+						return er
 					}
 					utils.AdaptHTTPWithHeader(w, constants.Header409Conflict)
 					rtjs := string(mal)
 					io.WriteString(w, rtjs)
-					return tk, err
+					return err
 				}
 				if dat.Attributes == nil {
 					dat.Attributes = map[string]interface{}{}
@@ -182,16 +183,15 @@ func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID 
 	payload.Data = tks
 	mal, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return err
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return "", nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // DELETE
-func (rc *Coordinator) DeleteService(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
+func (rc *Coordinator) DeleteService(w http.ResponseWriter, r *http.Request, srvID string) error {
 	if _, ok := rc.Services[srvID]; ok {
 		services := map[string]*Service{}
 		services[srvID] = center.Services[srvID]
@@ -205,45 +205,41 @@ func (rc *Coordinator) DeleteService(w http.ResponseWriter, r *http.Request, srv
 		delete(rc.Services, srvID)
 		mal, err := json.Marshal(payload)
 		if err != nil {
-			return "", err
+			return err
 		}
 		utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
-		return "", nil
+		io.WriteString(w, string(mal))
+		return nil
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-	rtjs := string("")
-	io.WriteString(w, rtjs)
-	return srvID, constants.ErrNoService
+	io.WriteString(w, "")
+	return constants.ErrNoService
 
 }
 
 // DELETE
-func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request, srvID string, agent *remoteshared.Agent) (string, error) {
+func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request, srvID string, Card *remoteshared.Card) error {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
 		if er != nil {
-			return "", er
+			return er
 		}
 		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
-		return srvID, constants.ErrNoService
+		io.WriteString(w, string(mal))
+		return constants.ErrNoService
 	}
 
-	err := rc.Services[srvID].DeRegister(agent)
+	err := rc.Services[srvID].DeRegister(Card)
 	if err != nil {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
 		if er != nil {
-			return "", er
+			return er
 		}
 		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
-		return srvID, err
+		io.WriteString(w, string(mal))
+		return err
 	}
 
 	services := map[string]*Service{}
@@ -259,27 +255,25 @@ func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request,
 
 	mal, errr := json.Marshal(rtpayload)
 	if errr != nil {
-		return "", errr
+		return errr
 	}
 
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return srvID, nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // DELETE
-func (rc *Coordinator) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
+func (rc *Coordinator) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request, srvID string) error {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
 		if er != nil {
-			return "", er
+			return er
 		}
 		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
-		return srvID, constants.ErrNoService
+		io.WriteString(w, string(mal))
+		return constants.ErrNoService
 	}
 	services := map[string]*Service{}
 	services[srvID] = rc.Services[srvID]
@@ -294,39 +288,33 @@ func (rc *Coordinator) DeRegisterServiceAll(w http.ResponseWriter, r *http.Reque
 
 	mal, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return err
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return rtjs, nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // DELETE
-func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request, srvID string, token string) (string, error) {
+func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request, srvID string, token string) error {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return "", er
-		}
+		mal, _ := json.Marshal(errPayload)
+
 		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
-		return srvID, constants.ErrNoService
+		io.WriteString(w, string(mal))
+		return constants.ErrNoService
 	}
 
 	err := rc.Services[srvID].UnSubscribe(token)
 	if err != nil {
 		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return "", er
-		}
+		mal, _ := json.Marshal(errPayload)
+
 		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
 		rtjs := string(mal)
 		io.WriteString(w, rtjs)
-		return srvID, err
+		return err
 	}
 
 	services := map[string]*Service{}
@@ -342,26 +330,24 @@ func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request
 
 	mal, errr := json.Marshal(rtpayload)
 	if errr != nil {
-		return "", errr
+		return errr
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return srvID, nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // DELETE
-func (rc *Coordinator) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Request, srvID string) (string, error) {
+func (rc *Coordinator) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Request, srvID string) error {
 	if _, ok := rc.Services[srvID]; !ok {
 		errPayload := restful.Error404NotFound()
 		mal, er := json.Marshal(errPayload)
 		if er != nil {
-			return "", er
+			return er
 		}
 		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
-		return srvID, constants.ErrNoService
+		io.WriteString(w, string(mal))
+		return constants.ErrNoService
 	}
 	services := map[string]*Service{}
 	services[srvID] = rc.Services[srvID]
@@ -373,18 +359,15 @@ func (rc *Coordinator) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Requ
 		},
 	}
 	rc.Services[srvID].UnSubscribeAll()
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return "", err
-	}
+	mal, _ := json.Marshal(payload)
+
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return "", nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
 // PUT
-func (rc *Coordinator) AlterService(w http.ResponseWriter, js string) (string, error) {
+func (rc *Coordinator) AlterService(w http.ResponseWriter, js string) error {
 	payload := restful.Decode(js)
 	for _, dat := range payload.Data {
 		if dat.Type == "service" {
@@ -393,17 +376,16 @@ func (rc *Coordinator) AlterService(w http.ResponseWriter, js string) (string, e
 				errPayload := restful.Error404NotFound()
 				mal, er := json.Marshal(errPayload)
 				if er != nil {
-					return "", er
+					return er
 				}
 				utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-				rtjs := string(mal)
-				io.WriteString(w, rtjs)
-				return srvID, constants.ErrNoService
+				io.WriteString(w, string(mal))
+				return constants.ErrNoService
 			}
 
 			svrs := Service{dat.ID, dat.Attributes["description"].(string),
 				remoteshared.UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
-				remoteshared.UnmarshalAgents(dat.Attributes["registers"].([]interface{})),
+				remoteshared.UnmarshalCards(dat.Attributes["registers"].([]interface{})),
 				remoteshared.UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
 				remoteshared.UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
 				UnmarshalMode(dat.Attributes["mode"]),
@@ -418,18 +400,55 @@ func (rc *Coordinator) AlterService(w http.ResponseWriter, js string) (string, e
 	}
 	mal, err := json.Marshal(payload)
 	if err != nil {
-		return "", err
+		return err
 	}
 	utils.AdaptHTTPWithHeader(w, constants.Header202Accepted)
-	rtjs := string(mal)
-	io.WriteString(w, rtjs)
-	return rtjs, nil
+	io.WriteString(w, string(mal))
+	return nil
 }
 
-func (rc *Coordinator) HeartBeatAll() []remoteshared.Agent {
+func (rc *Coordinator) QueryService(w http.ResponseWriter, r *http.Request, srvID string, token string) error {
+	if _, ok := rc.Services[srvID]; !ok {
+		errPayload := restful.Error404NotFound()
+		mal, er := json.Marshal(errPayload)
+		if er != nil {
+			return er
+		}
+		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+		io.WriteString(w, string(mal))
+		return constants.ErrNoService
+	}
+
+	agt, err := rc.Services[srvID].Query(token)
+	if err != nil {
+		errPayload := restful.Error404NotFound()
+		mal, _ := json.Marshal(errPayload)
+
+		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
+		rtjs := string(mal)
+		io.WriteString(w, rtjs)
+		return err
+	}
+
+	rtpayload := restful.Payload{
+		MarshalCardToStandardResource(srvID, agt),
+		[]restful.Resource{},
+		restful.Links{
+			Self: r.URL.String(),
+		},
+	}
+
+	mal, _ := json.Marshal(rtpayload)
+
+	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+	io.WriteString(w, string(mal))
+	return nil
+}
+
+func (rc *Coordinator) HeartBeatAll() []remoteshared.Card {
 	// send heartbeat signals to all service providers
 	// return which of them have already expired
-	var expired []remoteshared.Agent
+	var expired []remoteshared.Card
 	for _, service := range rc.Services {
 		for _, register := range service.RegList {
 			// test via predeclared endpoint
@@ -445,7 +464,7 @@ func (rc *Coordinator) HeartBeatAll() []remoteshared.Agent {
 func (rc *Coordinator) RefreshList() {
 	// acquire logs from heartbeat detection and remove those which have already expired
 	for _, service := range rc.Services {
-		var activated []remoteshared.Agent
+		var activated []remoteshared.Card
 		for _, register := range service.RegList {
 			res, err := http.Get(register.GetFullIP() + "/debug/heartbeat")
 			if err == nil && res.StatusCode == 200 {
@@ -615,7 +634,7 @@ func handlerFuncDeRegisterService(w http.ResponseWriter, r *http.Request) {
 	srvID := vars["srvid"]
 	ip := vars["ip"]
 	port, _ := strconv.Atoi(vars["port"])
-	center.DeRegisterService(w, r, srvID, &remoteshared.Agent{ip, port, true, ""})
+	center.DeRegisterService(w, r, srvID, &remoteshared.Card{ip, port, true, ""})
 	return
 }
 
@@ -626,6 +645,14 @@ func handlerFuncUnSubscribeService(w http.ResponseWriter, r *http.Request) {
 	token := vars["token"]
 	center.UnSubscribeService(w, r, srvID, token)
 	return
+}
+
+// return error if client is not in the subscriber list
+func handlerFuncQueryService(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	srvID := vars["srvid"]
+	token := vars["token"]
+	center.QueryService(w, r, srvID, token)
 }
 
 func MarshalServiceToStandardResource(srvs map[string]*Service) []restful.Resource {
@@ -647,4 +674,9 @@ func MarshalServiceToStandardResource(srvs map[string]*Service) []restful.Resour
 			}, []restful.Relationship{}})
 	}
 	return resources
+}
+
+func MarshalCardToStandardResource(srvID string, agt *remoteshared.Card) []restful.Resource {
+	return []restful.Resource{restful.Resource{"query", srvID, map[string]interface{}{
+		"enpoint": agt.GetFullEndPoint(), "ip": agt.IP, "port": agt.Port}, []restful.Relationship{}}}
 }

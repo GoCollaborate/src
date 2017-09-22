@@ -15,7 +15,7 @@ const (
 	DebugInactivated       = false
 	DebugActivated         = true
 	DefaultListenPort      = 8080
-	DefaultContactBookPath = "./contact.json"
+	DefaultCasePath        = "./case.json"
 	DefaultLogPath         = "./history.log"
 	DefaultDataStorePath   = "./collaborate.dat"
 	DefaultLogPrefix       = "GoCollaborate:"
@@ -30,6 +30,8 @@ const (
 	ProjectPath            = "ProjectPath"
 	DefaultWorkerPerMaster = 10
 	DefaultHost            = "localhost"
+	DefaultGossipNum       = 5
+	DefaultCaseID          = "GoCollaborateStandardCase"
 )
 
 // store setting
@@ -48,6 +50,7 @@ var (
 	DefaultTaskExpireTime      = 30 * time.Second
 	DefaultGCInterval          = 30 * time.Second
 	DefaultMaxMappingTime      = 600 * time.Second
+	DefaultSynInterval         = 3 * time.Minute
 )
 
 // communication types
@@ -79,25 +82,27 @@ const (
 
 // errors
 var (
-	ErrUnknownCmdArg      = errors.New("GoCollaborate: unknown commandline argument, please enter -h to check out")
-	ErrConnectionClosed   = errors.New("GoCollaborate: connection closed")
-	ErrUnknown            = errors.New("GoCollaborate: unknown error")
-	ErrAPIError           = errors.New("GoCollaborate: api error")
-	ErrNoCollaborator     = errors.New("GoCollaborate: collaborator does not exist")
-	ErrCollaboratorExists = errors.New("GoCollaborate: collaborator already exists")
-	ErrNoService          = errors.New("GoCollaborate: service of id does not exist")
-	ErrConflictService    = errors.New("GoCollaborate: found conflict, service of id already exists")
-	ErrNoRegister         = errors.New("GoCollaborate: register does not exist")
-	ErrConflictRegister   = errors.New("GoCollaborate: found conflict, provider of the service already exists")
-	ErrNoSubscriber       = errors.New("GoCollaborate: subscriber does not exist")
-	ErrConflictSubscriber = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
-	ErrTimeout            = errors.New("GoCollaborate: task timeout error")
-	ErrNoPeers            = errors.New("GoCollaborate: no peer appears in the contact book")
-	ErrFunctNotExist      = errors.New("GoCollaborate: no such function found in store")
-	ErrJobNotExist        = errors.New("GoCollaborate: no sucn job found in store")
-	ErrMapperNotFound     = errors.New("GoCollaborate: no such mapper found in store")
-	ErrReducerNotFound    = errors.New("GoCollaborate: no such reducer found in store")
-	ErrValNotFound        = errors.New("GoCollaborate: no value found with such key")
+	ErrUnknownCmdArg        = errors.New("GoCollaborate: unknown commandline argument, please enter -h to check out")
+	ErrConnectionClosed     = errors.New("GoCollaborate: connection closed")
+	ErrUnknown              = errors.New("GoCollaborate: unknown error")
+	ErrAPIError             = errors.New("GoCollaborate: api error")
+	ErrNoCollaborator       = errors.New("GoCollaborate: collaborator does not exist")
+	ErrCollaboratorExists   = errors.New("GoCollaborate: collaborator already exists")
+	ErrNoService            = errors.New("GoCollaborate: service of id does not exist")
+	ErrConflictService      = errors.New("GoCollaborate: found conflict, service of id already exists")
+	ErrNoRegister           = errors.New("GoCollaborate: register does not exist")
+	ErrConflictRegister     = errors.New("GoCollaborate: found conflict, provider of the service already exists")
+	ErrNoSubscriber         = errors.New("GoCollaborate: subscriber does not exist")
+	ErrConflictSubscriber   = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
+	ErrTimeout              = errors.New("GoCollaborate: task timeout error")
+	ErrNoPeers              = errors.New("GoCollaborate: no peer appears in the contact book")
+	ErrFunctNotExist        = errors.New("GoCollaborate: no such function found in store")
+	ErrJobNotExist          = errors.New("GoCollaborate: no sucn job found in store")
+	ErrMapperNotFound       = errors.New("GoCollaborate: no such mapper found in store")
+	ErrReducerNotFound      = errors.New("GoCollaborate: no such reducer found in store")
+	ErrValNotFound          = errors.New("GoCollaborate: no value found with such key")
+	ErrCaseMismatch         = errors.New("GoCollaborate: case mismatch error")
+	ErrCollaboratorMismatch = errors.New("GoCollaborate: collaborator mismatch error")
 )
 
 type Header struct {
@@ -105,7 +110,7 @@ type Header struct {
 	Value string `json:"value"`
 }
 
-// header
+// HTTP headers
 var (
 	Header200OK        = Header{"200", "OK"}
 	Header201Created   = Header{"201", "Created"}
@@ -116,12 +121,22 @@ var (
 	Header409Conflict  = Header{"409", "Conflict"}
 )
 
+// Gossip Protocol headers
+var (
+	GossipHeaderOK                   = Header{"200", "OK"}
+	GossipHeaderCaseMismatch         = Header{"401", "CaseMismatch"}
+	GossipHeaderCollaboratorMismatch = Header{"401", "CollaboratorMismatch"}
+	GossipHeaderUnknownError         = Header{"500", "UnknownGossipError"}
+)
+
 // restful
 const (
 	JSONAPIVersion = `{"version":"1.0"}`
 )
 
 var (
-	ProjectDir     = "github.com/GoCollaborate/"
-	ProjectUnixDir = os.Getenv("GOPATH") + "/src/github.com/GoCollaborate/"
+	ProjectDir     = ""
+	ProjectUnixDir = ""
+	LibDir         = "github.com/GoCollaborate/"
+	LibUnixDir     = os.Getenv("GOPATH") + "/src/github.com/GoCollaborate/"
 )

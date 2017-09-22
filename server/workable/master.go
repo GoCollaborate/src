@@ -16,18 +16,18 @@ import (
 )
 
 type Master struct {
-	Count       uint64
-	List        map[uint64]*servershared.Worker
-	Logger      *logger.Logger
-	BaseTasks   chan *task.Task
-	LowTasks    chan *task.Task
-	MediumTasks chan *task.Task
-	HighTasks   chan *task.Task
-	UrgentTasks chan *task.Task
-	bookkeeper  *collaborator.BookKeeper
+	Count        uint64
+	List         map[uint64]*servershared.Worker
+	Logger       *logger.Logger
+	BaseTasks    chan *task.Task
+	LowTasks     chan *task.Task
+	MediumTasks  chan *task.Task
+	HighTasks    chan *task.Task
+	UrgentTasks  chan *task.Task
+	Collaborator *collaborator.Collaborator
 }
 
-func NewMaster(bkp *collaborator.BookKeeper, args ...*logger.Logger) *Master {
+func NewMaster(bkp *collaborator.Collaborator, args ...*logger.Logger) *Master {
 	if len(args) > 0 {
 		return &Master{0, make(map[uint64]*servershared.Worker), args[0], make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), make(chan *task.Task), bkp}
 	}
@@ -86,7 +86,7 @@ func (m *Master) Proceed(tsks ...*task.Task) (*sync.WaitGroup, chan error) {
 				return
 			}
 
-			maps, err = m.bookkeeper.SyncDistribute(maps)
+			maps, err = m.Collaborator.SyncDistribute(maps)
 
 			if err != nil {
 				errchan <- err

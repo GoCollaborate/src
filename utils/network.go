@@ -101,10 +101,5 @@ func MapToExposureAddress(in string) string {
 	if in == "localhost" {
 		return GetLocalIP()
 	}
-
-	if in == GetLocalIP() {
-		return "localhost"
-	}
-
 	return in
 }

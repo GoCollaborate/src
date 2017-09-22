@@ -16,16 +16,11 @@ import (
 	"github.com/gorilla/mux"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strconv"
-	"sync"
 )
 
-var singleton *Vars
-var once sync.Once
-
 func Set(key string, val ...interface{}) interface{} {
-	Init()
+	cmd.Init()
 	switch key {
 	case constants.Mapper:
 		fs := store.GetInstance()
@@ -79,64 +74,60 @@ func Set(key string, val ...interface{}) interface{} {
 	return nil
 }
 
-func Run(vars ...*Vars) {
-	Init()
+func Run(vars ...*cmd.SysVars) {
 	// initialise environment
-	sysvars := cmd.InitCmdEnv()
-	singleton = combine(sysvars, vars...)
+	cmd.Combine(append(vars, cmd.InitCmdEnv())...)
 
 	var (
 		localLogger *logger.Logger
 		logFile     *os.File
 	)
 
-	switch singleton.CleanHistory {
+	runVars := cmd.Vars()
+
+	switch runVars.CleanHistory {
 	case constants.CleanHistory:
-		localLogger, logFile = logger.NewLogger(singleton.LogPath, constants.DefaultLogPrefix, true)
+		localLogger, logFile = logger.NewLogger(runVars.LogPath, constants.DefaultLogPrefix, true)
 	default:
-		localLogger, logFile = logger.NewLogger(singleton.LogPath, constants.DefaultLogPrefix, true)
+		localLogger, logFile = logger.NewLogger(runVars.LogPath, constants.DefaultLogPrefix, true)
 	}
 
 	// set handler for router
 	router := mux.NewRouter()
-	switch singleton.DebugMode {
+	switch runVars.DebugMode {
 	case true:
 		router = utils.AdaptRouterToDebugMode(router)
 	default:
 	}
 
-	logger.LogHeader("Program Started")
+	logger.LogLogo("", "(c) 2017 GoCollaborate", "", "Author: Hastings Yeung", "Github: https://github.com/HastingsYoung/GoCollaborate", "")
 
-	switch singleton.ServerMode {
+	switch runVars.ServerMode {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
 		// create publisher
 		pbls := server.GetPublisherInstance()
 		server.Logger(localLogger)
-		// create book keeper
-		bkp := collaborator.NewBookKeeper(pbls, localLogger)
-		bkp.NewBook()
+		// create collaborator
+		clbt := collaborator.NewCollaborator(pbls, localLogger)
 
-		mst := workable.NewMaster(bkp, localLogger)
-
-		// mst.Mapper(singleton.Mapper).Reducer(singleton.Reducer)
-
-		mst.BatchAttach(singleton.MaxRoutines)
+		mst := workable.NewMaster(clbt, localLogger)
+		mst.BatchAttach(runVars.MaxRoutines)
 		mst.LaunchAll()
 
 		// connect to master
 		pbls.Connect(mst)
-		bkp.Watch(mst)
+		clbt.Hire(mst)
 
-		bkp.Handle(router)
+		clbt.Handle(router)
 
 	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		cdnt := coordinator.GetCoordinatorInstance(singleton.Port, localLogger)
+		cdnt := coordinator.GetCoordinatorInstance(runVars.Port, localLogger)
 		cdnt.Handle(router)
 	}
 
 	// launch server
 	serv := &http.Server{
-		Addr:        ":" + strconv.Itoa(singleton.Port),
+		Addr:        ":" + strconv.Itoa(runVars.Port),
 		Handler:     router,
 		ReadTimeout: constants.DefaultReadTimeout,
 	}
@@ -144,47 +135,4 @@ func Run(vars ...*Vars) {
 	logger.LogError(err.Error())
 	localLogger.LogError(err.Error())
 	logFile.Close()
-}
-
-type Vars struct {
-	ServerMode      string
-	DebugMode       bool
-	Port            int
-	ContactBookPath string
-	LogPath         string
-	DataStorePath   string
-	MaxRoutines     int
-	CleanHistory    bool
-	WorkerPerMaster int
-}
-
-func Init() {
-	once.Do(func() {
-		singleton = &Vars{}
-		path, err := filepath.Abs("./")
-		if err != nil {
-			panic(err)
-		}
-		constants.ProjectDir = path
-	})
-}
-
-func combine(sysVars *cmd.SysVars, vars ...*Vars) *Vars {
-	var v Vars
-	if len(vars) > 0 {
-		v = *vars[0]
-	} else {
-		v = *singleton
-	}
-	s := *sysVars
-	v.ServerMode = s.ServerMode
-	v.DebugMode = s.DebugMode
-	v.Port = s.Port
-	v.ContactBookPath = s.ContactBookPath
-	v.LogPath = s.LogPath
-	v.DataStorePath = s.DataStorePath
-	v.MaxRoutines = s.MaxRoutines
-	v.CleanHistory = s.CleanHistory
-	v.WorkerPerMaster = s.WorkerPerMaster
-	return &v
 }

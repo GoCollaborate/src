@@ -40,11 +40,11 @@ func renderTemplate(w http.ResponseWriter, tmpl string) {
 }
 
 func makePath(path string) string {
-	return filepath.Join(constants.ProjectUnixDir+"web", "templates", path)
+	return filepath.Join(constants.LibUnixDir+"web", "templates", path)
 }
 
 func serveResource(w http.ResponseWriter, req *http.Request) {
-	path := constants.ProjectUnixDir + "static" + req.URL.Path
+	path := constants.LibUnixDir + "static" + req.URL.Path
 
 	f, err := os.Open(path)
 	if err != nil {

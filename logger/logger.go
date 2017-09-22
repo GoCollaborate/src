@@ -5,7 +5,7 @@ import (
 	"github.com/fatih/color"
 	"log"
 	"os"
-	"strings"
+	"strconv"
 	"time"
 )
 
@@ -38,75 +38,69 @@ func NewLogger(filePath string, prefix string, clean ...bool) (*Logger, *os.File
 	return &Logger{logger}, errorlog
 }
 
-func (logger *Logger) LogHeader(content string, mode ...int) {
-	logger.Internal.Println("=======" + transform(content, mode...) + "=======")
+func (logger *Logger) LogHeader(content string, vars ...interface{}) {
+	logger.Internal.Printf("=============="+content+"==============\n", vars...)
 }
 
-func (logger *Logger) LogProgress(content string, mode ...int) {
-	logger.Internal.Println("======>" + transform(content, mode...) + "...")
+func (logger *Logger) LogProgress(content string, vars ...interface{}) {
+	logger.Internal.Printf(" [PROGRESS]: "+content+"\n", vars...)
 }
 
-func (logger *Logger) LogWarning(content string, mode ...int) {
-	logger.Internal.Println("*******" + transform(content, mode...) + "*******")
+func (logger *Logger) LogWarning(content string, vars ...interface{}) {
+	logger.Internal.Printf(" [WARN]:     "+content+"\n", vars...)
 }
 
-func (logger *Logger) LogError(content string, mode ...int) {
-	logger.Internal.Println("#######" + transform(content, mode...) + "#######")
+func (logger *Logger) LogError(content string, vars ...interface{}) {
+	logger.Internal.Printf(" [ERROR]:    "+content+"\n", vars...)
 }
 
-func (logger *Logger) LogNormal(content string, mode ...int) {
-	logger.Internal.Println(transform(content, mode...))
+func (logger *Logger) LogNormal(content string, vars ...interface{}) {
+	logger.Internal.Printf(" [NORMAL]:   "+content+"\n", vars...)
 }
 
-func LogHeader(content interface{}, mode ...int) {
+func LogLogo(content ...interface{}) {
 	c := color.New(color.FgBlack).Add(color.Bold)
-	c.Println("=======" + transform(fmt.Sprint(content), mode...) + "=======")
-}
-
-func LogProgress(content interface{}, mode ...int) {
-	color.Cyan("======>" + transform(fmt.Sprint(content), mode...) + "...")
-}
-
-func LogWarning(content interface{}, mode ...int) {
-	color.Yellow(now() + ": " + transform(fmt.Sprint(content), mode...))
-}
-
-func LogError(content interface{}, mode ...int) {
-	color.Red(now() + ": " + transform(fmt.Sprint(content), mode...))
-}
-
-func LogNormal(content interface{}, mode ...int) {
-	fmt.Println(now() + ": " + transform(fmt.Sprint(content), mode...))
-}
-
-func LogListPoint(content interface{}, mode ...int) {
-	fmt.Printf("                           " + "- " + transform(fmt.Sprint(content), mode...) + "\n")
-}
-
-func LogNormalWithPrefix(mode int, content ...interface{}) {
-	LogNormal(fmt.Sprint(content...), mode)
-}
-
-func LogErrorWithPrefix(mode int, content ...interface{}) {
-	LogNormal(fmt.Sprint(content...), mode)
-}
-
-func transform(in string, mode ...int) string {
-	if len(mode) > 0 {
-		switch mode[0] {
-		case NORMAL:
-			return in
-		case CAPITALIZED:
-			return strings.Title(in)
-		case UPPERCASE:
-			return strings.ToUpper(in)
-		case LOWERCASE:
-			return strings.ToLower(in)
-		default:
-			return in
-		}
+	c.Println("============================================================")
+	for _, ct := range content {
+		center := fmt.Sprint(ct)
+		l := len(center)
+		offset := (58 - l) / 2
+		c.Printf("%-"+strconv.Itoa(offset)+"s %s %"+strconv.Itoa(offset)+"s\n", "=", center, "=")
 	}
-	return in
+	c.Println("============================================================")
+}
+
+func LogHeader(content interface{}, vars ...interface{}) {
+	c := color.New(color.FgBlack).Add(color.Bold)
+	c.Printf(fmt.Sprint(content)+"\n", vars...)
+}
+
+func LogProgress(content interface{}, vars ...interface{}) {
+	color.Cyan(" [PROGRESS]: "+fmt.Sprint(content)+"\n", vars...)
+}
+
+func LogWarning(content interface{}, vars ...interface{}) {
+	color.Yellow(now()+" [WARN]:     "+fmt.Sprint(content)+"\n", vars...)
+}
+
+func LogError(content interface{}, vars ...interface{}) {
+	color.Red(now()+" [ERROR]:    "+fmt.Sprint(content)+"\n", vars...)
+}
+
+func LogNormal(content interface{}, vars ...interface{}) {
+	color.Blue(now()+" [NORMAL]:   "+fmt.Sprint(content)+"\n", vars...)
+}
+
+func LogListPoint(content ...interface{}) {
+	fmt.Printf("%38s"+"[-] %v", "", fmt.Sprint(content)+"\n")
+}
+
+func LogNormalWithPrefix(content ...interface{}) {
+	LogNormal(fmt.Sprint(content...))
+}
+
+func LogErrorWithPrefix(content ...interface{}) {
+	LogNormal(fmt.Sprint(content...))
 }
 
 func now() string {

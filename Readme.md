@@ -18,25 +18,30 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 - [Document](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/)
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
-
-### 0.1.9
+### 0.2.x
+#### 0.2.0
+- Implement Gossip Protocol
+- Rename struct and functions
+- Refine code structure
+### 0.1.x
+#### 0.1.9
 - Refactor package dependencies
 - Add Job, Stage literals
 - Support bulk-execution of tasks
 - Update example documents
-### 0.1.8
+#### 0.1.8
 - Refactor API entry in Coordinator mode
 - Add documents for Coordinator mode
 - Add command line argument `numwks` to specify number of workers per master program
-### 0.1.7
+#### 0.1.7
 - Support chainning of mappers
 - Support mapper & reducer pipelines
 - Refactor example project structrue
-### 0.1.6
+#### 0.1.6
 - Support task-specific mapper and reducer
 - Update example documents
 - Repair bugs in coordinator mode
-### 0.1.5
+#### 0.1.5
 - Refine logging format
 - Support automatic garbage collection for hash functions
 ## Quick Start
@@ -49,7 +54,7 @@ go get -u github.com/GoCollaborate
 mkdir Your_Project_Name
 cd Your_Project_Name
 mkdir core
-touch contact.json
+touch case.json
 touch main.go
 cd ./core
 touch example.go
@@ -61,21 +66,26 @@ The project structure now looks something like this:
 ├ [core]
 	┬
 	└ example.go
-├ contact.json
+├ case.json
 └ main.go
 ```
-Configure file `contact.json`:
+Configure file `case.json`:
 ```js
 {
-	"agents": [{
-		"ip": "localhost",
-		"port": 57851,
-		"alive": true
-	}, {
-		"ip": "localhost",
-		"port": 57852,
-		"alive": true
-	}],
+	"caseid": "GoCollaborateStandardCase",
+	"cards": {
+		"localhost:57851": {
+			"ip": "localhost",
+			"port": 57851,
+			"alive": true
+		},
+		"localhost:57852": {
+			"ip": "localhost",
+			"port": 57852,
+			"alive": true
+		}
+	},
+	"timestamp": 1505998322,
 	"local": {
 		"ip": "localhost",
 		"port": 57851,
@@ -85,8 +95,7 @@ Configure file `contact.json`:
 		"ip": "",
 		"port": 0,
 		"alive": false
-	},
-	"timestamp": 1504182648
+	}
 }
 ```
 ### Entry
@@ -208,29 +217,33 @@ cp Your_Project_Name Your_Project_Name_Copy
 ```sh
 cd Your_Project_Name_Copy
 ```
-3. Edit local ip address in `contact.json`:
+3. Edit local ip address in `case.json`:
 ```js
 {
-	"agents": [{
-		"ip": "localhost",
-		"port": 57851,
-		"alive": true
-	}, {
-		"ip": "localhost",
-		"port": 57852,
-		"alive": true
-	}],
+	"caseid": "GoCollaborateStandardCase",
+	"cards": {
+		"localhost:57851": {
+			"ip": "localhost",
+			"port": 57851,
+			"alive": true
+		},
+		"localhost:57852": {
+			"ip": "localhost",
+			"port": 57852,
+			"alive": true
+		}
+	},
+	"timestamp": 1505998322,
 	"local": {
 		"ip": "localhost",
-		"port": 57852,
+		"port": 57851,
 		"alive": true
 	},
 	"coordinator": {
 		"ip": "",
 		"port": 0,
 		"alive": false
-	},
-	"timestamp": 1504182648
+	}
 }
 ```
 4. Run the copied project, don't forget to change your port number if you are running locally:

@@ -5,17 +5,7 @@ import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/restful"
-	"github.com/GoCollaborate/utils"
-	"strconv"
 )
-
-// agent is the network config of server
-type Agent struct {
-	IP    string `json:"ip"`
-	Port  int    `json:"port"`
-	Alive bool   `json:"alive"`
-	API   string `json:"api,omitempty"`
-}
 
 type Parameter struct {
 	Type        string       `json:"type"`
@@ -92,33 +82,4 @@ func (par *Parameter) Validate(dat *restful.Resource) bool {
 		return false
 	}
 	return true
-}
-
-func UnmarshalAgents(original []interface{}) []Agent {
-	var agents []Agent
-	for _, o := range original {
-		oo := o.(map[string]interface{})
-		if oo["api"] != nil {
-			agents = append(agents, Agent{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), oo["api"].(string)})
-			continue
-		}
-		agents = append(agents, Agent{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), ""})
-	}
-	return agents
-}
-
-func (c *Agent) GetFullIP() string {
-	return c.IP + ":" + strconv.Itoa(c.Port)
-}
-
-func (c *Agent) GetFullExposureAddress() string {
-	return utils.MapToExposureAddress(c.IP) + ":" + strconv.Itoa(c.Port)
-}
-
-func (c *Agent) GetFullEndPoint() string {
-	return c.IP + ":" + strconv.Itoa(c.Port) + "/" + c.API
-}
-
-func (c *Agent) IsEqualTo(another *Agent) bool {
-	return c.GetFullIP() == another.GetFullIP() || c.GetFullExposureAddress() == another.GetFullExposureAddress()
 }

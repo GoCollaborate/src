@@ -2,6 +2,7 @@ package collaborator
 
 import (
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/remote/remoteshared"
 	"github.com/GoCollaborate/server"
 	"github.com/GoCollaborate/server/task"
 )
@@ -14,28 +15,10 @@ func NewLocalMethods(wk server.Workable) *LocalMethods {
 	return &LocalMethods{wk}
 }
 
-func (l *LocalMethods) Signal(arg *ContactBook, update *ContactBook) error {
-	logger.LogNormal("Signal Acquired!")
-	upd, err := arg.RemoteLoad()
+func (l *LocalMethods) Exchange(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
+	logger.LogNormal("Card message from another Collaborator received")
 
-	// update local config to remote call
-	update.Agents = upd.Agents
-	update.Local = upd.Local
-	update.TimeStamp = upd.TimeStamp
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (l *LocalMethods) Disconnect(arg *ContactBook, update *ContactBook) error {
-	logger.LogNormal("Disconnect:" + arg.Local.GetFullIP())
-	upd, err := arg.RemoteDisconnect()
-
-	// update local config to remote call
-	update.Agents = upd.Agents
-	update.Local = upd.Local
-	update.TimeStamp = upd.TimeStamp
+	err := RemoteLoad(in, out)
 
 	if err != nil {
 		return err
@@ -43,15 +26,11 @@ func (l *LocalMethods) Disconnect(arg *ContactBook, update *ContactBook) error {
 	return nil
 }
 
-func (l *LocalMethods) Terminate(arg *ContactBook, update *ContactBook) error {
-	logger.LogNormal("Terminate:" + arg.Local.GetFullIP())
-	upd, err := arg.RemoteTerminate()
+func (l *LocalMethods) Disconnect(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
+	from := in.From()
+	logger.LogNormal("Disconnect:" + from.GetFullIP())
 
-	// update local config to remote call
-	update.Agents = upd.Agents
-	upd.Local.Alive = false
-	update.Local = upd.Local
-	update.TimeStamp = upd.TimeStamp
+	err := RemoteDisconnect(in, out)
 
 	if err != nil {
 		return err

@@ -3,13 +3,14 @@ package coordinator
 import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/remote/remoteshared"
+	"math/rand"
 )
 
 // remote settings
 const (
 	RPCServerModeNormal                 mode = iota
 	RPCServerModeOnlyRegister                // collaborator only registers service, service is not accessible until it has been changed to RPCServerModeNormal
-	RPCServerModeStatic                      // coordinating agent will not automatically manage this server
+	RPCServerModeStatic                      // coordinating Card will not automatically manage this server
 	RPCServerModeRandomLoadBalance           // assign tasks as per weighted probability
 	RPCServerModeLeastActiveLoadBalance      // assign tasks to active responders
 	RPCClientModeOnlySubscribe               // client only subscribes to collaborator service at RegCenter, yet still collaborates with direct point to point connection
@@ -20,7 +21,7 @@ type Service struct {
 	ServiceID        string                   `json:"serviceid"`
 	Description      string                   `json:"description"`
 	Parameters       []remoteshared.Parameter `json:"parameters"`
-	RegList          []remoteshared.Agent     `json:"registers"`
+	RegList          []remoteshared.Card      `json:"registers"`
 	SbscrbList       []string                 `json:"subscribers"`  // subscriber tokens
 	Dependencies     []string                 `json:"dependencies"` // dependent ServiceIDs
 	Mode             mode                     `json:"mode,omitempty"`
@@ -63,7 +64,7 @@ func (s *Service) GetLoadBalanceMode() mode {
 	return s.LoadBalanceMode
 }
 
-func (s *Service) Register(agt *remoteshared.Agent) error {
+func (s *Service) Register(agt *remoteshared.Card) error {
 	for _, r := range s.RegList {
 		if agt.IsEqualTo(&r) {
 			return constants.ErrConflictRegister
@@ -74,7 +75,7 @@ func (s *Service) Register(agt *remoteshared.Agent) error {
 }
 
 // de-register function will not preserve the original order of registers
-func (s *Service) DeRegister(agt *remoteshared.Agent) error {
+func (s *Service) DeRegister(agt *remoteshared.Card) error {
 	y := s.RegList[:0]
 
 	for i, x := range s.RegList {
@@ -88,7 +89,7 @@ func (s *Service) DeRegister(agt *remoteshared.Agent) error {
 }
 
 func (s *Service) DeRegisterAll() error {
-	y := []remoteshared.Agent{}
+	y := []remoteshared.Card{}
 	s.RegList = y
 	return nil
 }
@@ -113,6 +114,22 @@ func (s *Service) UnSubscribe(token string) error {
 		}
 	}
 	return constants.ErrNoSubscriber
+}
+
+func (s *Service) Query(token string) (*remoteshared.Card, error) {
+	for _, x := range s.SbscrbList {
+		if x == token {
+			return s.loadBalanceRoll(), nil
+		}
+	}
+	return nil, constants.ErrNoRegister
+}
+
+func (s *Service) loadBalanceRoll() *remoteshared.Card {
+	switch s.LoadBalanceMode {
+	default:
+		return &s.RegList[rand.Intn(len(s.RegList))]
+	}
 }
 
 func (s *Service) UnSubscribeAll() error {
