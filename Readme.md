@@ -1,4 +1,5 @@
 # GoCollaborate
+![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 ## What is GoCollaborate?
 GoCollaborate is an universal framework for distributed services management that you can easily program with, build extension on, and on top of which you can create your own high performance distributed services like a breeze.
 ### The Idea Behind
@@ -7,8 +8,6 @@ GoCollaborate absorbs the best practice experience from popular distributed serv
 Yes! Please check out the terms of the BSD License.
 ### Contribution
 This project is currently under development, please feel free to fork it and report issues!
-### Documents (In Construction...)
-![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 
 Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/) document for more information.
 
@@ -19,6 +18,11 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.1
+- Refactor Task API
+- Refine communication structs
+- Support generic executors
+- Rewrite examples
 #### 0.2.0
 - Implement Gossip Protocol
 - Rename struct and functions
@@ -129,26 +133,21 @@ import (
 )
 
 func ExampleJobHandler(w http.ResponseWriter, r *http.Request) *task.Job {
-	// create new job
 	job := task.MakeJob()
-
-	// do whatever with http request
-	
-	// multiple tasks will be sorted by stage, tasks at the same stage will be processed in parallel
-	job.Tasks(&task.Task{task.PERMANENT,
+	job.Tasks(&task.Task{task.SHORT,
 		task.BASE, "exampleFunc",
 		[]task.Countable{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
 		[]task.Countable{0},
-		task.NewTaskContext(struct{}{}),
-		"core.ExampleTask.Mapper",
-		"core.ExampleTask.Reducer", 0})
-
+		task.NewTaskContext(struct{}{}), 0})
+	job.Stacks("core.ExampleTask.Mapper", "core.ExampleTask.Reducer")
 	return job
 }
 
-func ExampleFunc(source *[]task.Countable,result *[]task.Countable,context *task.TaskContext) chan bool {
+func ExampleFunc(source *[]task.Countable,
+	result *[]task.Countable,
+	context *task.TaskContext) chan bool {
 	out := make(chan bool)
-
+	// deal with passed in request
 	go func() {
 		fmt.Println("Example Task Executed...")
 		var total int
@@ -158,44 +157,53 @@ func ExampleFunc(source *[]task.Countable,result *[]task.Countable,context *task
 		*result = append(*result, total)
 		out <- true
 	}()
-
 	return out
 }
 
 type SimpleMapper int
 
-func (m *SimpleMapper) Map(t *task.Task) (map[int64]*task.Task, error) {
-	maps := make(map[int64]*task.Task)
-	s1 := t.Source[:4]
-	s2 := t.Source[4:8]
-	s3 := t.Source[8:]
-	s4 := t.Result
-	s5 := t.Result
-	s6 := t.Result
-	maps[int64(0)] = &task.Task{t.Type, t.Priority, t.Consumable, s1, s4, t.Context, t.Mapper, t.Reducer, t.Stage}
-	maps[int64(1)] = &task.Task{t.Type, t.Priority, t.Consumable, s2, s5, t.Context, t.Mapper, t.Reducer, t.Stage}
-	maps[int64(2)] = &task.Task{t.Type, t.Priority, t.Consumable, s3, s6, t.Context, t.Mapper, t.Reducer, t.Stage}
+func (m *SimpleMapper) Map(inmaps map[int]*task.Task) (map[int]*task.Task, error) {
+	var (
+		s1      []task.Countable
+		s2      []task.Countable
+		s3      []task.Countable
+		s4      []task.Countable
+		s5      []task.Countable
+		s6      []task.Countable
+		gap     = len(inmaps)
+		outmaps = make(map[int]*task.Task)
+	)
+	for k, t := range inmaps {
+		var (
+			sgap = len(t.Source)
+		)
+		s1 = t.Source[:sgap/3]
+		s2 = t.Source[sgap/3 : sgap*2/3]
+		s3 = t.Source[sgap*2/3:]
+		s4 = t.Result
+		s5 = t.Result
+		s6 = t.Result
 
-	return maps, nil
+		outmaps[(k+1)*gap] = &task.Task{t.Type, t.Priority, t.Consumable, s1, s4, t.Context, t.Stage}
+		outmaps[(k+1)*gap+1] = &task.Task{t.Type, t.Priority, t.Consumable, s2, s5, t.Context, t.Stage}
+		outmaps[(k+1)*gap+2] = &task.Task{t.Type, t.Priority, t.Consumable, s3, s6, t.Context, t.Stage}
+	}
+
+	return outmaps, nil
 }
 
 type SimpleReducer int
 
-func (r *SimpleReducer) Reduce(source map[int64]*task.Task, result *task.Task) error {
-	rs := *result
+func (r *SimpleReducer) Reduce(maps map[int]*task.Task) (map[int]*task.Task, error) {
 	var sum int
-	
-	for _, s := range source {
+	for _, s := range maps {
 		for _, r := range (*s).Result {
 			sum += r.(int)
 		}
 	}
-
-	rs.Result[0] = sum
 	fmt.Printf("The sum of numbers is: %v \n", sum)
-	fmt.Printf("The task result set is: %v", rs)
-
-	return nil
+	fmt.Printf("The task set is: %v", maps)
+	return maps, nil
 }
 
 ```

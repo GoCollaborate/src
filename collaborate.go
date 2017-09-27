@@ -2,11 +2,10 @@ package collaborate
 
 import (
 	"github.com/GoCollaborate/cmd"
+	"github.com/GoCollaborate/collaborator"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/remote/collaborator"
 	"github.com/GoCollaborate/remote/coordinator"
-	"github.com/GoCollaborate/server"
 	"github.com/GoCollaborate/server/mapper"
 	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
@@ -104,19 +103,14 @@ func Run(vars ...*cmd.SysVars) {
 
 	switch runVars.ServerMode {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
-		// create publisher
-		pbls := server.GetPublisherInstance()
-		server.Logger(localLogger)
 		// create collaborator
-		clbt := collaborator.NewCollaborator(pbls, localLogger)
+		clbt := collaborator.NewCollaborator(localLogger)
 
-		mst := workable.NewMaster(clbt, localLogger)
+		mst := workable.NewMaster(localLogger)
 		mst.BatchAttach(runVars.MaxRoutines)
 		mst.LaunchAll()
 
-		// connect to master
-		pbls.Connect(mst)
-		clbt.Hire(mst)
+		clbt.Join(mst)
 
 		clbt.Handle(router)
 

@@ -7,6 +7,7 @@ import (
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote/remoteshared"
 	"github.com/GoCollaborate/server"
+	"github.com/GoCollaborate/server/executor"
 	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
@@ -18,23 +19,28 @@ import (
 	"time"
 )
 
+const (
+	MAXIDLECONNECTIONS int           = 20
+	REQUESTTIMEOUT     time.Duration = 5
+	UPDATEINTERVAL     time.Duration = 1
+)
+
 // Collaborator is a helper struct to operate on any inner trxs
 type Collaborator struct {
-	CardCase  Case
-	Publisher *server.Publisher
-	Workable  server.Workable
-	Logger    *logger.Logger
+	CardCase Case
+	Workable server.Workable
+	Logger   *logger.Logger
 }
 
-func NewCollaborator(pbls *server.Publisher, localLogger *logger.Logger) *Collaborator {
-	return &Collaborator{*newCase(), pbls, server.Dummy(), localLogger}
+func NewCollaborator(localLogger *logger.Logger) *Collaborator {
+	return &Collaborator{*newCase(), server.Dummy(), localLogger}
 }
 
 func newCase() *Case {
 	return &Case{cmd.Vars().CaseID, Exposed{make(map[string]remoteshared.Card), time.Now().Unix()}, Reserved{*remoteshared.Default(), remoteshared.Card{}}}
 }
 
-func (clbt *Collaborator) Hire(wk server.Workable) {
+func (clbt *Collaborator) Join(wk server.Workable) {
 	clbt.Workable = wk
 
 	err := populate(&clbt.CardCase)
@@ -186,71 +192,34 @@ func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 	return router
 }
 
-func (clbt *Collaborator) Distribute(sources ...*task.Task) ([]*task.Task, error) {
-	b := clbt.CardCase
-	var result []*task.Task
-	l1 := int64(len(sources))
-	l2 := int64(len(b.Cards()))
-	if l2 < 1 {
-		return []*task.Task{}, constants.ErrNoPeers
-	}
-	i := int64(-1)
-	for _, e := range b.Cards() {
-		i++
-		var l = l1 % l2
-		if (i * l) >= l1 {
-			break
-		}
-		s := sources[(i * l):((i + 1) * l)]
-		if e.IsEqualTo(&b.Local) {
-			clbt.Publisher.LocalDistribute(s...)
-			continue
-		}
-		client, err := launchClient(e.IP, e.Port)
-		if err != nil {
-			logger.LogWarning("Connection failed while connecting")
-			continue
-		}
-		err = client.Distribute(s, &result)
-		if err != nil {
-			logger.LogWarning("Calling method failed while terminating")
-			continue
-		}
-	}
-	return result, nil
-}
+func (clbt *Collaborator) SyncDistribute(sources map[int]*task.Task) (map[int]*task.Task, error) {
+	cc := clbt.CardCase
+	l1 := len(sources)
+	l2 := len(cc.Cards())
 
-func (clbt *Collaborator) SyncDistribute(sources map[int64]*task.Task) (map[int64]*task.Task, error) {
-	b := clbt.CardCase
-	l1 := int64(len(sources))
-	l2 := int64(len(b.Cards()))
 	var (
-		result  map[int64]*task.Task = make(map[int64]*task.Task)
-		counter int64                = 0
+		result  map[int]*task.Task = make(map[int]*task.Task)
+		counter int                = 0
 	)
 
 	// task channel
-	chs := make(map[int64]chan *task.Task)
+	chs := make(map[int]chan *task.Task)
 
 	if l2 < 1 {
 		return result, constants.ErrNoPeers
 	}
 	// waiting for rpc responses
 	printProgress(counter, l1)
-	i := int64(-1)
-	for _, k := range sources {
-		i++
-		var l = (l1 + i - 1) % l2
-		if (i * l) >= l1 {
-			break
-		}
-		e := b.ReturnByPosInt64(l)
+
+	for k, v := range sources {
+		var l = k % l2
+		e := cc.ReturnByPos(l)
 
 		// publish to local if local Card/Card is down
-		if e.IsEqualTo(&b.Local) || !e.Alive {
+		if e.IsEqualTo(&cc.Local) || !e.Alive {
 			// copy a pointer for concurrent map access
-			p := *k
-			chs[i] = clbt.Publisher.SyncDistribute(&p)
+			p := *v
+			chs[k] = clbt.DelayExecute(&p)
 			continue
 		}
 
@@ -261,22 +230,24 @@ func (clbt *Collaborator) SyncDistribute(sources map[int64]*task.Task) (map[int6
 			logger.LogWarning("Connection failed while connecting")
 			logger.LogWarning("Republish task to local")
 			// copy a pointer for concurrent map access
-			p := *k
-			chs[i] = clbt.Publisher.SyncDistribute(&p)
+			p := *v
+			chs[k] = clbt.DelayExecute(&p)
 			continue
 		}
+
 		// copy a pointer for concurrent map access
-		s := make(map[int64]*task.Task)
-		s[i] = k
-		chs[i] = client.SyncDistribute(&s, &s)
+		s := make(map[int]*task.Task)
+		s[k] = v
+		chs[k] = client.SyncDistribute(&s, &s)
 	}
+
 	// Wait for responses
 	for {
 		for i, ch := range chs {
 			select {
 			case t := <-ch:
 				counter++
-				result[int64(i)] = t
+				result[i] = t
 				printProgress(counter, l1)
 			}
 		}
@@ -323,8 +294,21 @@ func launchClient(endpoint string, port int) (*RPCClient, error) {
 func (clbt *Collaborator) HandleLocal(router *mux.Router, api string, jobFunc *store.JobFunc) {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
 		job := jobFunc.F(w, r)
+		var (
+			counter = 0
+		)
 		for s := job.Front(); s != nil; s = s.Next() {
-			clbt.Publisher.LocalDistribute(s.TaskSet...)
+			exes, err := job.Exes(counter)
+			if err != nil {
+				logger.LogError(err)
+				break
+			}
+			err = clbt.LocalDistribute(&s.TaskSet, exes)
+			if err != nil {
+				logger.LogError(err)
+				break
+			}
+			counter++
 		}
 	}).Methods(jobFunc.Methods...)
 }
@@ -332,10 +316,92 @@ func (clbt *Collaborator) HandleLocal(router *mux.Router, api string, jobFunc *s
 func (clbt *Collaborator) HandleShared(router *mux.Router, api string, jobFunc *store.JobFunc) {
 	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
 		job := jobFunc.F(w, r)
+		var (
+			counter = 0
+		)
 		for s := job.Front(); s != nil; s = s.Next() {
-			clbt.Publisher.SharedDistribute(s.TaskSet...)
+			exes, err := job.Exes(counter)
+			if err != nil {
+				logger.LogError(err)
+				break
+			}
+
+			err = clbt.SharedDistribute(&s.TaskSet, exes)
+			if err != nil {
+				logger.LogError(err)
+				break
+			}
+			counter++
 		}
 	}).Methods(jobFunc.Methods...)
+}
+
+func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, exe []string) error {
+	clbt.Workable.Enqueue(*pmaps)
+	return nil
+}
+
+// SharedDistribute will process the tasks of the same stage in memory
+func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []string) error {
+	var (
+		err  error
+		fs   = store.GetInstance()
+		maps = *pmaps
+	)
+	for _, stack := range stacks {
+		var (
+			exe executor.Executor
+		)
+		exe, err = fs.GetExecutor(stack)
+
+		if err != nil {
+			return err
+		}
+
+		switch exe.Type() {
+		// mapper
+		case constants.ExecutorTypeMapper:
+			maps, err = exe.Execute(maps)
+			if err != nil {
+				return err
+			}
+			maps, err = clbt.SyncDistribute(maps)
+			// reducer
+		case constants.ExecutorTypeReducer:
+			maps, err = exe.Execute(maps)
+			if err != nil {
+				return err
+			}
+		default:
+			maps, err = exe.Execute(maps)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	*pmaps = maps
+
+	return nil
+}
+
+func (clbt *Collaborator) DelayExecute(t *task.Task) chan *task.Task {
+	ch := make(chan *task.Task)
+
+	go func() {
+		defer close(ch)
+		err := clbt.Workable.Done(t)
+		if err != nil {
+			logger.LogError("Execution Error:" + err.Error())
+			ch <- &task.Task{}
+		}
+		ch <- t
+	}()
+	return ch
+}
+
+func Delay(sec time.Duration) {
+	tm := time.NewTimer(sec * time.Second)
+	<-tm.C
 }
 
 func printProgress(num interface{}, tol interface{}) {

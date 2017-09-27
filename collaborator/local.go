@@ -38,25 +38,15 @@ func (l *LocalMethods) Disconnect(in *remoteshared.CardMessage, out *remoteshare
 	return nil
 }
 
-func (l *LocalMethods) Distribute(source []*task.Task, result *[]*task.Task) error {
-	logger.LogNormal("Distribute...")
-	l.workable.Enqueue(source...)
-	result = &source
-	return nil
-}
-
-func (l *LocalMethods) SyncDistribute(source *map[int64]*task.Task, result *map[int64]*task.Task) error {
-	logger.LogNormal("SyncDistribute...")
+func (l *LocalMethods) SyncDistribute(source *map[int]*task.Task, result *map[int]*task.Task) error {
+	logger.LogNormal("Task from another Collaborator received")
 	s := *source
-	r := make(map[int64]*task.Task)
 
-	for i, m := range s {
-		err := l.workable.Done(m)
-		if err != nil {
-			return err
-		}
-		r[i] = m
+	err := l.workable.DoneMulti(s)
+	if err != nil {
+		return err
 	}
-	*result = r
+
+	*result = s
 	return nil
 }

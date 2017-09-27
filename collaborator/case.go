@@ -209,22 +209,6 @@ func (c *Case) ReturnByPos(pos int) remoteshared.Card {
 	return remoteshared.Card{}
 }
 
-func (c *Case) ReturnByPosInt64(pos int64) remoteshared.Card {
-	mu.Lock()
-	defer mu.Unlock()
-	if l := int64(len(c.Exposed.Cards)); pos > l {
-		pos = pos % l
-	}
-	counter := int64(0)
-	for _, a := range c.Exposed.Cards {
-		if counter == pos {
-			return a
-		}
-		counter++
-	}
-	return remoteshared.Card{}
-}
-
 func Compare(a remoteshared.ICardMessage, b remoteshared.ICardMessage) bool {
 	if a.TimeStamp() < b.TimeStamp() {
 		return true

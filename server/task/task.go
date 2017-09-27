@@ -64,8 +64,6 @@ type Task struct {
 	Source     []Countable
 	Result     []Countable
 	Context    *TaskContext
-	Mapper     string
-	Reducer    string
 	Stage      int
 }
 
@@ -81,12 +79,13 @@ type Job struct {
 	front  *Stage
 	back   *Stage
 	length int
+	stacks [][]string
 }
 
 type Stage struct {
 	previous *Stage
 	next     *Stage
-	TaskSet  []*Task
+	TaskSet  map[int]*Task
 }
 
 func (s *Stage) Prev() *Stage {
@@ -97,15 +96,24 @@ func (s *Stage) Next() *Stage {
 	return s.next
 }
 
-func MakeStage(prev *Stage, next *Stage, tset ...*Task) *Stage {
-	return &Stage{prev, next, tset}
+func MakeStage(prev *Stage, next *Stage, tset ...map[int]*Task) *Stage {
+	if len(tset) > 0 {
+		var maps map[int]*Task = make(map[int]*Task)
+		for _, val := range tset {
+			for k, v := range val {
+				maps[k] = v
+			}
+		}
+		return &Stage{prev, next, maps}
+	}
+	return &Stage{prev, next, map[int]*Task{}}
 }
 
 func MakeJob(s ...*Stage) *Job {
 	if len(s) > 0 {
-		return &Job{uuid.NewV4().String(), s[0], s[0], s[0], 1}
+		return &Job{uuid.NewV4().String(), s[0], s[0], s[0], 1, [][]string{}}
 	}
-	return &Job{uuid.NewV4().String(), nil, nil, nil, 0}
+	return &Job{uuid.NewV4().String(), nil, nil, nil, 0, [][]string{}}
 }
 
 func (j *Job) Id() string {
@@ -203,6 +211,18 @@ func (j *Job) PushFront(front *Stage) *Stage {
 	return front
 }
 
+func (j *Job) Exes(i int) ([]string, error) {
+	if i > len(j.stacks) {
+		return []string{}, constants.ErrExecutorStackLengthInconsistent
+	}
+	return j.stacks[i], nil
+}
+
+func (j *Job) Stacks(stacks ...string) *Job {
+	j.stacks = append(j.stacks, stacks)
+	return j
+}
+
 func (j *Job) Tasks(tsks ...*Task) {
 	if len(tsks) < 1 {
 		return
@@ -214,13 +234,13 @@ func (j *Job) Tasks(tsks ...*Task) {
 		stage int    = tsks[0].Stage
 		temp  *Stage = MakeStage(nil, nil)
 	)
-	for _, s := range tsks {
+	for i, s := range tsks {
 		if stage == s.Stage {
-			temp.TaskSet = append(temp.TaskSet, s)
+			temp.TaskSet[i] = s
 		} else {
 			j.PushBack(temp)
 			temp = MakeStage(nil, nil)
-			temp.TaskSet = append(temp.TaskSet, s)
+			temp.TaskSet[i] = s
 			stage++
 		}
 	}

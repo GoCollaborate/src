@@ -10,8 +10,8 @@ import (
 type RemoteMethods interface {
 	Exchange(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error
 	Disconnect(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error
-	Distribute(source []*task.Task, result *[]*task.Task) error
-	SyncDistribute(source *map[int64]*task.Task, result *map[int64]*task.Task) error
+	// Distribute(source []*task.Task, result *[]*task.Task) error
+	SyncDistribute(source *map[int]*task.Task, result *map[int]*task.Task) error
 }
 
 type RPCClient struct {
@@ -36,17 +36,17 @@ func (c *RPCClient) Disconnect(in *remoteshared.CardMessage, out *remoteshared.C
 	return nil
 }
 
-func (c *RPCClient) Distribute(source []*task.Task, result *[]*task.Task) error {
-	go func() {
-		err := c.Client.Call("RemoteMethods.Distribute", source, result)
-		if err != nil {
-			logger.LogError("Connection Error:" + err.Error())
-		}
-	}()
-	return nil
-}
+// func (c *RPCClient) Distribute(source []*task.Task, result *[]*task.Task) error {
+// 	go func() {
+// 		err := c.Client.Call("RemoteMethods.Distribute", source, result)
+// 		if err != nil {
+// 			logger.LogError("Connection Error:" + err.Error())
+// 		}
+// 	}()
+// 	return nil
+// }
 
-func (c *RPCClient) SyncDistribute(source *map[int64]*task.Task, result *map[int64]*task.Task) chan *task.Task {
+func (c *RPCClient) SyncDistribute(source *map[int]*task.Task, result *map[int]*task.Task) chan *task.Task {
 	ch := make(chan *task.Task)
 	go func() {
 		defer close(ch)

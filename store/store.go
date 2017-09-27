@@ -3,6 +3,7 @@ package store
 import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/server/executor"
 	"github.com/GoCollaborate/server/mapper"
 	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
@@ -31,8 +32,7 @@ func GetInstance() *FS {
 			context *task.TaskContext) chan bool),
 			make(map[string]chan bool),
 			make(map[string]*color),
-			make(map[string]mapper.Mapper),
-			make(map[string]reducer.Reducer),
+			make(map[string]executor.Executor),
 			make(map[string]*task.Job),
 			make(map[string]*JobFunc),
 			make(map[string]*JobFunc)}
@@ -47,8 +47,7 @@ type FS struct {
 		context *task.TaskContext) chan bool
 	Outbound   map[string]chan bool
 	memstack   map[string]*color
-	mappers    map[string]mapper.Mapper
-	reducers   map[string]reducer.Reducer
+	executors  map[string]executor.Executor
 	jobs       map[string]*task.Job
 	SharedJobs map[string]*JobFunc
 	LocalJobs  map[string]*JobFunc
@@ -118,25 +117,24 @@ func (fs *FS) Listen(id string) chan bool {
 }
 
 func (fs *FS) SetMapper(mp mapper.Mapper, name string) {
-	fs.mappers[name] = mp
+	exe := executor.Default()
+	exe.Todo(mp.Map)
+	exe.Type(constants.ExecutorTypeMapper)
+	fs.executors[name] = exe
 }
 
 func (fs *FS) SetReducer(rd reducer.Reducer, name string) {
-	fs.reducers[name] = rd
+	exe := executor.Default()
+	exe.Todo(rd.Reduce)
+	exe.Type(constants.ExecutorTypeReducer)
+	fs.executors[name] = exe
 }
 
-func (fs *FS) GetMapper(name string) (mapper.Mapper, error) {
-	if mp := fs.mappers[name]; mp != nil {
-		return mp, nil
+func (fs *FS) GetExecutor(name string) (executor.Executor, error) {
+	if exe := fs.executors[name]; exe != nil {
+		return exe, nil
 	}
-	return mapper.Default(), constants.ErrMapperNotFound
-}
-
-func (fs *FS) GetReducer(name string) (reducer.Reducer, error) {
-	if rd := fs.reducers[name]; rd != nil {
-		return rd, nil
-	}
-	return reducer.Default(), constants.ErrReducerNotFound
+	return executor.Default(), constants.ErrExecutorNotFound
 }
 
 func (fs *FS) SetJob(j *task.Job) {

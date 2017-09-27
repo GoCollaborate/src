@@ -8,7 +8,7 @@ import (
 )
 
 type Worker struct {
-	ID          uint64
+	ID          uint
 	Alive       bool
 	BaseTasks   chan *task.Task
 	LowTasks    chan *task.Task
@@ -59,7 +59,7 @@ func (w *Worker) Start() {
 	}()
 }
 
-func (w *Worker) GetID() uint64 {
+func (w *Worker) GetID() uint {
 	return w.ID
 }
 

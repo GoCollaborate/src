@@ -76,7 +76,7 @@ func LogHeader(content interface{}, vars ...interface{}) {
 }
 
 func LogProgress(content interface{}, vars ...interface{}) {
-	color.Cyan(" [PROGRESS]: "+fmt.Sprint(content)+"\n", vars...)
+	color.Cyan(now()+" [PROGRESS]: "+fmt.Sprint(content)+"\n", vars...)
 }
 
 func LogWarning(content interface{}, vars ...interface{}) {

@@ -53,6 +53,15 @@ var (
 	DefaultSynInterval         = 3 * time.Minute
 )
 
+// executor types
+const (
+	ExecutorTypeMapper   = "mapper"
+	ExecutorTypeReducer  = "reducer"
+	ExecutorTypeShuffler = "shuffler"
+	ExecutorTypeCombiner = "combiner"
+	ExecutorTypeDefault  = "default"
+)
+
 // communication types
 const (
 	ArgTypeInteger              = "integer"
@@ -82,27 +91,29 @@ const (
 
 // errors
 var (
-	ErrUnknownCmdArg        = errors.New("GoCollaborate: unknown commandline argument, please enter -h to check out")
-	ErrConnectionClosed     = errors.New("GoCollaborate: connection closed")
-	ErrUnknown              = errors.New("GoCollaborate: unknown error")
-	ErrAPIError             = errors.New("GoCollaborate: api error")
-	ErrNoCollaborator       = errors.New("GoCollaborate: collaborator does not exist")
-	ErrCollaboratorExists   = errors.New("GoCollaborate: collaborator already exists")
-	ErrNoService            = errors.New("GoCollaborate: service of id does not exist")
-	ErrConflictService      = errors.New("GoCollaborate: found conflict, service of id already exists")
-	ErrNoRegister           = errors.New("GoCollaborate: register does not exist")
-	ErrConflictRegister     = errors.New("GoCollaborate: found conflict, provider of the service already exists")
-	ErrNoSubscriber         = errors.New("GoCollaborate: subscriber does not exist")
-	ErrConflictSubscriber   = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
-	ErrTimeout              = errors.New("GoCollaborate: task timeout error")
-	ErrNoPeers              = errors.New("GoCollaborate: no peer appears in the contact book")
-	ErrFunctNotExist        = errors.New("GoCollaborate: no such function found in store")
-	ErrJobNotExist          = errors.New("GoCollaborate: no sucn job found in store")
-	ErrMapperNotFound       = errors.New("GoCollaborate: no such mapper found in store")
-	ErrReducerNotFound      = errors.New("GoCollaborate: no such reducer found in store")
-	ErrValNotFound          = errors.New("GoCollaborate: no value found with such key")
-	ErrCaseMismatch         = errors.New("GoCollaborate: case mismatch error")
-	ErrCollaboratorMismatch = errors.New("GoCollaborate: collaborator mismatch error")
+	ErrUnknownCmdArg                   = errors.New("GoCollaborate: unknown commandline argument, please enter -h to check out")
+	ErrConnectionClosed                = errors.New("GoCollaborate: connection closed")
+	ErrUnknown                         = errors.New("GoCollaborate: unknown error")
+	ErrAPIError                        = errors.New("GoCollaborate: api error")
+	ErrNoCollaborator                  = errors.New("GoCollaborate: collaborator does not exist")
+	ErrCollaboratorExists              = errors.New("GoCollaborate: collaborator already exists")
+	ErrNoService                       = errors.New("GoCollaborate: service of id does not exist")
+	ErrConflictService                 = errors.New("GoCollaborate: found conflict, service of id already exists")
+	ErrNoRegister                      = errors.New("GoCollaborate: register does not exist")
+	ErrConflictRegister                = errors.New("GoCollaborate: found conflict, provider of the service already exists")
+	ErrNoSubscriber                    = errors.New("GoCollaborate: subscriber does not exist")
+	ErrConflictSubscriber              = errors.New("GoCollaborate: found conflict, subscriber of the service already exists")
+	ErrTimeout                         = errors.New("GoCollaborate: task timeout error")
+	ErrNoPeers                         = errors.New("GoCollaborate: no peer appears in the contact book")
+	ErrFunctNotExist                   = errors.New("GoCollaborate: no such function found in store")
+	ErrJobNotExist                     = errors.New("GoCollaborate: no sucn job found in store")
+	ErrExecutorNotFound                = errors.New("GoCollaborate: no such executor found in store")
+	ErrValNotFound                     = errors.New("GoCollaborate: no value found with such key")
+	ErrCaseMismatch                    = errors.New("GoCollaborate: case mismatch error")
+	ErrCollaboratorMismatch            = errors.New("GoCollaborate: collaborator mismatch error")
+	ErrMapTaskFailing                  = errors.New("GoCollaborate: map operation failing error")
+	ErrReduceTaskFailing               = errors.New("GoCollaborate: reduce operation failing error")
+	ErrExecutorStackLengthInconsistent = errors.New("GoCollaborate: executor stack length inconsistent error")
 )
 
 type Header struct {
