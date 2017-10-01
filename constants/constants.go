@@ -18,7 +18,7 @@ const (
 	DefaultCasePath        = "./case.json"
 	DefaultLogPath         = "./history.log"
 	DefaultDataStorePath   = "./collaborate.dat"
-	DefaultLogPrefix       = "GoCollaborate:"
+	DefaultLogPrefix       = ""
 	CleanHistory           = true
 	DefaultNotCleanHistory = false
 	Mapper                 = "Mapper"
@@ -123,13 +123,16 @@ type Header struct {
 
 // HTTP headers
 var (
-	Header200OK        = Header{"200", "OK"}
-	Header201Created   = Header{"201", "Created"}
-	Header202Accepted  = Header{"202", "Accepted"}
-	Header204NoContent = Header{"204", "NoContent"}
-	Header403Forbidden = Header{"403", "Forbidden"}
-	Header404NotFound  = Header{"404", "NotFound"}
-	Header409Conflict  = Header{"409", "Conflict"}
+	Header200OK               = Header{"200", "OK"}
+	Header201Created          = Header{"201", "Created"}
+	Header202Accepted         = Header{"202", "Accepted"}
+	Header204NoContent        = Header{"204", "NoContent"}
+	Header403Forbidden        = Header{"403", "Forbidden"}
+	Header404NotFound         = Header{"404", "NotFound"}
+	Header409Conflict         = Header{"409", "Conflict"}
+	HeaderContentTypeJSON     = Header{"Content-Type", "application/json"}
+	HeaderContentTypeText     = Header{"Content-Type", "text/html"}
+	HeaderCORSEnableAllOrigin = Header{"Access-Control-Allow-Origin", "*"}
 )
 
 // Gossip Protocol headers

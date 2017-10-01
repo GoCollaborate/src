@@ -11,6 +11,7 @@ import (
 	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
+	"github.com/GoCollaborate/web"
 	"github.com/gorilla/mux"
 	"net"
 	"net/http"
@@ -29,11 +30,10 @@ const (
 type Collaborator struct {
 	CardCase Case
 	Workable server.Workable
-	Logger   *logger.Logger
 }
 
-func NewCollaborator(localLogger *logger.Logger) *Collaborator {
-	return &Collaborator{*newCase(), server.Dummy(), localLogger}
+func NewCollaborator() *Collaborator {
+	return &Collaborator{*newCase(), server.Dummy()}
 }
 
 func newCase() *Case {
@@ -49,10 +49,15 @@ func (clbt *Collaborator) Join(wk server.Workable) {
 	}
 
 	logger.LogNormal("Case Identifier:")
+	logger.GetLoggerInstance().LogNormal("Case Identifier:")
 	logger.LogListPoint(clbt.CardCase.CaseID)
-	logger.LogNormal("Local Address:")
+	logger.GetLoggerInstance().LogListPoint(clbt.CardCase.CaseID)
+
 	ip := utils.GetLocalIP()
+	logger.LogNormal("Local Address:")
 	logger.LogListPoint(ip)
+	logger.GetLoggerInstance().LogNormal("Local Address:")
+	logger.GetLoggerInstance().LogListPoint(ip)
 
 	logger.LogNormal("Cards:")
 
@@ -66,6 +71,7 @@ func (clbt *Collaborator) Join(wk server.Workable) {
 			alive = "Terminated"
 		}
 		logger.LogListPoint(h.GetFullIP(), alive)
+		logger.GetLoggerInstance().LogListPoint(h.GetFullIP(), alive)
 	}
 
 	local := clbt.CardCase.Local
@@ -122,6 +128,7 @@ func (clbt *Collaborator) Catchup() {
 
 			if err != nil {
 				logger.LogWarning("Connection failed while bridging")
+				logger.GetLoggerInstance().LogWarning("Connection failed while bridging")
 				override := c.Exposed.Cards[key]
 				override.Alive = false
 				c.Exposed.Cards[key] = override
@@ -137,6 +144,7 @@ func (clbt *Collaborator) Catchup() {
 
 			if err != nil {
 				logger.LogWarning("Calling method failed while bridging")
+				logger.GetLoggerInstance().LogWarning("Calling method failed while bridging")
 				continue
 			}
 
@@ -174,18 +182,33 @@ func (clbt *Collaborator) Clean() {
 }
 
 func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
+
+	// register dashboard
+	router.HandleFunc("/", web.Index).Methods("GET").Name("Index")
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.LibUnixDir+"static/")))).Name("Static")
+	router.HandleFunc("/dashboard/profile", web.Profile).Methods("GET").Name("Profile")
+	router.HandleFunc("/dashboard/routes", web.Routes).Methods("GET").Name("Routes")
+	router.HandleFunc("/dashboard/logs", web.Logs).Methods("GET").Name("Logs")
+
 	// register tasks existing in publisher
 	// reflect api endpoint based on exposed task (function) name
 	// once api get called, use distribute
 	fs := store.GetInstance()
 	for _, jobFunc := range fs.SharedJobs {
-		logger.LogNormalWithPrefix("Job Linked: ", jobFunc.Signature)
+		logger.LogNormal("Job Linked:")
+		logger.LogListPoint(jobFunc.Signature)
+		logger.GetLoggerInstance().LogNormal("Job Linked:")
+		logger.GetLoggerInstance().LogListPoint(jobFunc.Signature)
+
 		// shared registry
 		clbt.HandleShared(router, jobFunc.Signature, jobFunc)
 	}
 
 	for _, jobFunc := range fs.LocalJobs {
-		logger.LogNormalWithPrefix("Job Linked: ", jobFunc.Signature)
+		logger.LogNormal("Job Linked:")
+		logger.LogListPoint(jobFunc.Signature)
+		logger.GetLoggerInstance().LogNormal("Job Linked:")
+		logger.GetLoggerInstance().LogListPoint(jobFunc.Signature)
 		// local registry
 		clbt.HandleLocal(router, jobFunc.Signature, jobFunc)
 	}
@@ -229,6 +252,8 @@ func (clbt *Collaborator) SyncDistribute(sources map[int]*task.Task) (map[int]*t
 			// re-publish to local if failed
 			logger.LogWarning("Connection failed while connecting")
 			logger.LogWarning("Republish task to local")
+			logger.GetLoggerInstance().LogWarning("Connection failed while connecting")
+			logger.GetLoggerInstance().LogWarning("Republish task to local")
 			// copy a pointer for concurrent map access
 			p := *v
 			chs[k] = clbt.DelayExecute(&p)
@@ -257,6 +282,7 @@ func (clbt *Collaborator) SyncDistribute(sources map[int]*task.Task) (map[int]*t
 	}
 
 	logger.LogProgress("All task responses collected")
+	logger.GetLoggerInstance().LogProgress("All task responses collected")
 	return result, nil
 }
 
@@ -273,7 +299,8 @@ func (c *Collaborator) launchServer() {
 		server.HandleHTTP("/", "debug")
 		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.CardCase.Local.Port))
 		if e != nil {
-			logger.LogErrorWithPrefix("Listen Error:", e)
+			logger.LogError("Listen Error:", e)
+			logger.GetLoggerInstance().LogError("Listen Error:", e)
 		}
 		http.Serve(l, nil)
 	}()
@@ -284,7 +311,8 @@ func launchClient(endpoint string, port int) (*RPCClient, error) {
 	clientContact := remoteshared.Card{endpoint, port, true, ""}
 	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
-		logger.LogErrorWithPrefix("Dialing:", err)
+		logger.LogError("Dialing:", err)
+		logger.GetLoggerInstance().LogError("Dialing:", err)
 		return &RPCClient{}, err
 	}
 	Card := &RPCClient{Client: client}
@@ -300,17 +328,17 @@ func (clbt *Collaborator) HandleLocal(router *mux.Router, api string, jobFunc *s
 		for s := job.Front(); s != nil; s = s.Next() {
 			exes, err := job.Exes(counter)
 			if err != nil {
-				logger.LogError(err)
+				logger.GetLoggerInstance().LogError(err)
 				break
 			}
 			err = clbt.LocalDistribute(&s.TaskSet, exes)
 			if err != nil {
-				logger.LogError(err)
+				logger.GetLoggerInstance().LogError(err)
 				break
 			}
 			counter++
 		}
-	}).Methods(jobFunc.Methods...)
+	}).Methods(jobFunc.Methods...).Name("Local Tasks")
 }
 
 func (clbt *Collaborator) HandleShared(router *mux.Router, api string, jobFunc *store.JobFunc) {
@@ -322,18 +350,18 @@ func (clbt *Collaborator) HandleShared(router *mux.Router, api string, jobFunc *
 		for s := job.Front(); s != nil; s = s.Next() {
 			exes, err := job.Exes(counter)
 			if err != nil {
-				logger.LogError(err)
+				logger.GetLoggerInstance().LogError(err)
 				break
 			}
 
 			err = clbt.SharedDistribute(&s.TaskSet, exes)
 			if err != nil {
-				logger.LogError(err)
+				logger.GetLoggerInstance().LogError(err)
 				break
 			}
 			counter++
 		}
-	}).Methods(jobFunc.Methods...)
+	}).Methods(jobFunc.Methods...).Name("Shared Tasks")
 }
 
 func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, exe []string) error {
@@ -406,4 +434,5 @@ func Delay(sec time.Duration) {
 
 func printProgress(num interface{}, tol interface{}) {
 	logger.LogProgress("Waiting for task responses[" + fmt.Sprintf("%v", num) + "/" + fmt.Sprintf("%v", tol) + "]")
+	logger.GetLoggerInstance().LogProgress("Waiting for task responses[" + fmt.Sprintf("%v", num) + "/" + fmt.Sprintf("%v", tol) + "]")
 }

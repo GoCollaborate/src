@@ -33,13 +33,12 @@ type Coordinator struct {
 	Services map[string]*Service `json:"services"` // map of ServiceID to Services
 	Port     int                 `json:"port"`
 	GoVer    string              `json:"gover"`
-	Logger   logger.Logger       `json:"-"`
 }
 
 // singleton instance of registry center
-func GetCoordinatorInstance(port int, lg *logger.Logger) *Coordinator {
+func GetCoordinatorInstance(port int) *Coordinator {
 	once.Do(func() {
-		center = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*Service{}, port, runtime.Version(), *lg}
+		center = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*Service{}, port, runtime.Version()}
 	})
 	return center
 }
@@ -50,7 +49,7 @@ func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 
 	router.HandleFunc("/", web.Index).Methods("GET")
 	router.HandleFunc("/index", web.Index).Methods("GET")
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.ProjectUnixDir+"static/"))))
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.LibUnixDir+"static/"))))
 	router.HandleFunc("/services", handlerFuncGetServices).Methods("GET")
 
 	// client launch request to call a service
@@ -481,7 +480,8 @@ func (rc *Coordinator) Dump() {
 	// constants.DataStorePath
 	err1 := os.Chmod(constants.DefaultDataStorePath, 0777)
 	if err1 != nil {
-		logger.LogWarning("Create new data source...")
+		logger.LogWarning("Create new data source.")
+		logger.GetLoggerInstance().LogWarning("Create new data source.")
 	}
 	mal, err2 := json.Marshal(&rc)
 	err2 = ioutil.WriteFile(constants.DefaultDataStorePath, mal, os.ModeExclusive|os.ModeAppend)

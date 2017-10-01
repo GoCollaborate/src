@@ -1,11 +1,17 @@
 package web
 
 import (
-	"bufio"
+	"encoding/json"
+	"github.com/GoCollaborate/artifacts"
+	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/store"
+	"github.com/GoCollaborate/utils"
+	"github.com/gorilla/mux"
 	"html/template"
+	"io"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 )
@@ -31,6 +37,69 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func Profile(w http.ResponseWriter, r *http.Request) {
+	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	io.WriteString(w, cmd.VarsJSONArrayStr())
+}
+
+func Routes(w http.ResponseWriter, r *http.Request) {
+	router := store.GetRouter()
+
+	base := artifacts.Base{"GoCollaborate API", "[ Base URL: / ]"}
+	entries := []artifacts.EntriesGroup{}
+	models := []artifacts.ModelsGroup{}
+
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+
+		es := []artifacts.Entry{}
+
+		t, err := route.GetPathTemplate()
+		if err != nil {
+			return err
+		}
+
+		n := route.GetName()
+
+		methods, err := route.GetMethods()
+		if err != nil {
+			return err
+		}
+
+		for _, m := range methods {
+			es = append(es, artifacts.Entry{m, t, "", false})
+		}
+
+		entries = append(entries, artifacts.EntriesGroup{n, "", es})
+
+		return nil
+	})
+
+	artifact := artifacts.Artifact{base, entries, models}
+	mal, err := json.Marshal(artifact)
+
+	if err != nil {
+		panic(err)
+	}
+
+	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	io.WriteString(w, string(mal))
+}
+
+func Logs(w http.ResponseWriter, r *http.Request) {
+	str, err := logger.GetLogs()
+	if err != nil {
+		logger.LogError(err)
+		return
+	}
+	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	io.WriteString(w, str)
+}
+
 func renderTemplate(w http.ResponseWriter, tmpl string) {
 	err := templates.ExecuteTemplate(w, tmpl+".html", 0)
 	if err != nil {
@@ -41,17 +110,4 @@ func renderTemplate(w http.ResponseWriter, tmpl string) {
 
 func makePath(path string) string {
 	return filepath.Join(constants.LibUnixDir+"web", "templates", path)
-}
-
-func serveResource(w http.ResponseWriter, req *http.Request) {
-	path := constants.LibUnixDir + "static" + req.URL.Path
-
-	f, err := os.Open(path)
-	if err != nil {
-		w.WriteHeader(404)
-	} else {
-		defer f.Close()
-		br := bufio.NewReader(f)
-		br.WriteTo(w)
-	}
 }

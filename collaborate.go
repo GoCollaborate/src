@@ -12,7 +12,6 @@ import (
 	"github.com/GoCollaborate/server/workable"
 	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
-	"github.com/gorilla/mux"
 	"net/http"
 	"os"
 	"strconv"
@@ -92,7 +91,7 @@ func Run(vars ...*cmd.SysVars) {
 	}
 
 	// set handler for router
-	router := mux.NewRouter()
+	router := store.GetRouter()
 	switch runVars.DebugMode {
 	case true:
 		router = utils.AdaptRouterToDebugMode(router)
@@ -104,9 +103,9 @@ func Run(vars ...*cmd.SysVars) {
 	switch runVars.ServerMode {
 	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
 		// create collaborator
-		clbt := collaborator.NewCollaborator(localLogger)
+		clbt := collaborator.NewCollaborator()
 
-		mst := workable.NewMaster(localLogger)
+		mst := workable.NewMaster()
 		mst.BatchAttach(runVars.MaxRoutines)
 		mst.LaunchAll()
 
@@ -115,7 +114,7 @@ func Run(vars ...*cmd.SysVars) {
 		clbt.Handle(router)
 
 	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		cdnt := coordinator.GetCoordinatorInstance(runVars.Port, localLogger)
+		cdnt := coordinator.GetCoordinatorInstance(runVars.Port)
 		cdnt.Handle(router)
 	}
 

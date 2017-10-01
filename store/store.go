@@ -8,13 +8,16 @@ import (
 	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/utils"
+	"github.com/gorilla/mux"
 	"net/http"
 	"sync"
 	"time"
 )
 
+var router *mux.Router
 var singleton *FS
 var once sync.Once
+var onceRouter sync.Once
 var mu sync.Mutex
 
 type color int
@@ -24,6 +27,13 @@ const (
 	grey
 	black
 )
+
+func GetRouter() *mux.Router {
+	onceRouter.Do(func() {
+		router = mux.NewRouter()
+	})
+	return router
+}
 
 func GetInstance() *FS {
 	once.Do(func() {

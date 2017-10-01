@@ -33,7 +33,7 @@ color.Blue("Prints %s in blue.", "text")
 
 // These are using the default foreground colors
 color.Red("We have red")
-color.MCarda("And many others ..")
+color.Magenta("And many others ..")
 
 ```
 
@@ -123,10 +123,10 @@ fmt.Printf("This one %s\n", "too")
 color.Unset() // Don't forget to unset
 
 // You can mix up parameters
-color.Set(color.FgMCarda, color.Bold)
+color.Set(color.FgMagenta, color.Bold)
 defer color.Unset() // Use it in your function
 
-fmt.Println("All text will now be bold mCarda.")
+fmt.Println("All text will now be bold magenta.")
 ```
 
 ### Disable color

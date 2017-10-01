@@ -4,6 +4,7 @@ import (
 	"flag"
 	"github.com/GoCollaborate/constants"
 	"path/filepath"
+	"strconv"
 	"sync"
 )
 
@@ -25,7 +26,7 @@ var singleton *SysVars
 var once sync.Once
 
 func InitCmdEnv() *SysVars {
-	svrMode := flag.String("svrmode", constants.CollaboratorMode, "define the server mode, clbt=collaborator, cdnt=coordinator")
+	svrMode := flag.String("mode", constants.CollaboratorMode, "define the server mode, clbt=collaborator, cdnt=coordinator")
 	debug := flag.Bool("debug", constants.DebugInactivated, "define if the server should be running in debug mode")
 	port := flag.Int("port", constants.DefaultListenPort, "define the port the server should listen to")
 	casePath := flag.String("cpath", constants.DefaultCasePath, "define the path to store CASE information")
@@ -68,6 +69,33 @@ func Combine(vars ...*SysVars) *SysVars {
 func Vars() *SysVars {
 	cp := *singleton
 	return &cp
+}
+
+func VarsJSONArrayStr() string {
+
+	return `{
+		"headers":["CaseID",
+		"ServerMode",
+		"DebugMode",
+		"Port",
+		"CasePath",
+		"LogPath",
+		"DataStorePath",
+		"MaxRoutines",
+		"CleanHistory",
+		"WorkerPerMaster",
+		"GossipNum"],
+	"data":[["CaseID","string","` + singleton.CaseID + `"],
+	["ServerMode","string","` + singleton.ServerMode + `"],
+	["DebugMode","bool",` + strconv.FormatBool(singleton.DebugMode) + `],
+	["Port","int",` + strconv.Itoa(singleton.Port) + `],
+	["CasePath","string","` + singleton.CasePath + `"],
+	["LogPath","string","` + singleton.LogPath + `"],
+	["DataStorePath","string","` + singleton.DataStorePath + `"],
+	["MaxRoutines","int",` + strconv.Itoa(singleton.MaxRoutines) + `],
+	["CleanHistory","bool",` + strconv.FormatBool(singleton.CleanHistory) + `],
+	["WorkerPerMaster","int",` + strconv.Itoa(singleton.WorkerPerMaster) + `],
+	["GossipNum","int",` + strconv.Itoa(singleton.GossipNum) + `]]}`
 }
 
 func Init() {

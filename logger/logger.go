@@ -3,59 +3,76 @@ package logger
 import (
 	"fmt"
 	"github.com/fatih/color"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
-var errorlog *os.File
+var path string
+var file *os.File
 
 const NORMAL = 0
 const CAPITALIZED = 1
 const UPPERCASE = 2
 const LOWERCASE = 3
 
+var singleton *Logger
+var once sync.Once
+
 type Logger struct {
 	Internal *log.Logger
 }
 
 func NewLogger(filePath string, prefix string, clean ...bool) (*Logger, *os.File) {
-	var (
-		errorlog *os.File
-		err      error
-	)
-	if len(clean) > 0 && clean[0] {
-		errorlog, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0666)
-	} else {
-		errorlog, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
-	}
-	if err != nil {
-		errorlog, err = os.Create(filePath)
-	}
+	once.Do(func() {
+		var (
+			err error
+		)
+		path = filePath
+		if len(clean) > 0 && clean[0] {
+			file, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE, 0666)
+		} else {
+			file, err = os.OpenFile(filePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		}
+		if err != nil {
+			file, err = os.Create(filePath)
+		}
 
-	logger := log.New(errorlog, prefix, log.Ldate|log.Ltime|log.LUTC)
-	return &Logger{logger}, errorlog
+		logger := log.New(file, prefix, log.Ldate|log.Ltime|log.LUTC)
+		singleton = &Logger{logger}
+	})
+	return singleton, file
 }
 
-func (logger *Logger) LogHeader(content string, vars ...interface{}) {
-	logger.Internal.Printf("=============="+content+"==============\n", vars...)
+func GetLoggerInstance() *Logger {
+	return singleton
 }
 
-func (logger *Logger) LogProgress(content string, vars ...interface{}) {
-	logger.Internal.Printf(" [PROGRESS]: "+content+"\n", vars...)
+func (logger *Logger) LogHeader(content interface{}, vars ...interface{}) {
+	logger.Internal.Printf(fmt.Sprint(content)+"\n", vars...)
 }
 
-func (logger *Logger) LogWarning(content string, vars ...interface{}) {
-	logger.Internal.Printf(" [WARN]:     "+content+"\n", vars...)
+func (logger *Logger) LogProgress(content interface{}, vars ...interface{}) {
+	logger.Internal.Printf(" [PROGRESS]: "+fmt.Sprint(content)+"\n", vars...)
 }
 
-func (logger *Logger) LogError(content string, vars ...interface{}) {
-	logger.Internal.Printf(" [ERROR]:    "+content+"\n", vars...)
+func (logger *Logger) LogWarning(content interface{}, vars ...interface{}) {
+	logger.Internal.Printf(" [WARN]:     "+fmt.Sprint(content)+"\n", vars...)
 }
 
-func (logger *Logger) LogNormal(content string, vars ...interface{}) {
-	logger.Internal.Printf(" [NORMAL]:   "+content+"\n", vars...)
+func (logger *Logger) LogError(content interface{}, vars ...interface{}) {
+	logger.Internal.Printf(" [ERROR]:    "+fmt.Sprint(content)+"\n", vars...)
+}
+
+func (logger *Logger) LogNormal(content interface{}, vars ...interface{}) {
+	logger.Internal.Printf(" [NORMAL]:   "+fmt.Sprint(content)+"\n", vars...)
+}
+
+func (logger *Logger) LogListPoint(content ...interface{}) {
+	logger.Internal.Printf(" [LIST]:%5s"+"[-] %v", "", fmt.Sprint(content)+"\n")
 }
 
 func LogLogo(content ...interface{}) {
@@ -92,15 +109,14 @@ func LogNormal(content interface{}, vars ...interface{}) {
 }
 
 func LogListPoint(content ...interface{}) {
-	fmt.Printf("%38s"+"[-] %v", "", fmt.Sprint(content)+"\n")
+	fmt.Printf(now()+" [LIST]:%5s"+"[-] %v", "", fmt.Sprint(content)+"\n")
 }
 
-func LogNormalWithPrefix(content ...interface{}) {
-	LogNormal(fmt.Sprint(content...))
-}
-
-func LogErrorWithPrefix(content ...interface{}) {
-	LogNormal(fmt.Sprint(content...))
+func GetLogs() (string, error) {
+	f, err := os.OpenFile(path, os.O_RDONLY, 0666)
+	defer f.Close()
+	b, err := ioutil.ReadAll(f)
+	return string(b), err
 }
 
 func now() string {

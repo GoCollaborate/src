@@ -27,26 +27,31 @@ func (w *Worker) Start() {
 				return
 			case tk := <-w.UrgentTasks:
 				logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
+				logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 				fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
 			default:
 				select {
 				case tk := <-w.HighTasks:
 					logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
+					logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 					fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
 				default:
 					select {
 					case tk := <-w.MediumTasks:
 						logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
+						logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 						fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
 					default:
 						select {
 						case tk := <-w.LowTasks:
 							logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
+							logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 							fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
 						default:
 							select {
 							case tk := <-w.BaseTasks:
 								logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
+								logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 								fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
 							default:
 								continue

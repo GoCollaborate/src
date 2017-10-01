@@ -15,9 +15,13 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 - [Source code](https://github.com/HastingsYoung/GoCollaborate)
 - [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
 - [Document](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/)
+- [GoCollaborate UI](https://github.com/HastingsYoung/Material-Dashboard-UI/tree/gocollaborate-ui)
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.2
+- Integrate with GoCollaborate UI (http://localhost:8080)
+- Refine web routes structrue
 #### 0.2.1
 - Refactor Task API
 - Refine communication structs
@@ -263,6 +267,10 @@ go run main.go -svrmode=clbt -port=8081
 http://localhost:8080/core/ExampleJobHandler
 // and 
 http://localhost:8081/core/ExampleJobHandler
+```
+6. Alternatively, access the GoCollaborate UI for more infomation:
+```
+http://localhost:8080
 ```
 
 ## Acknowledgement
