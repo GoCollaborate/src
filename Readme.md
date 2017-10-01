@@ -214,7 +214,7 @@ func (r *SimpleReducer) Reduce(maps map[int]*task.Task) (map[int]*task.Task, err
 ### Run
 Here we create the entry file and a simple implementation of map-reduce interface, and next we will run with std arguments:
 ```sh
-go run main.go -svrmode=clbt
+go run main.go -mode=clbt
 ```
 The task is now up and running at:
 ```
@@ -260,7 +260,7 @@ cd Your_Project_Name_Copy
 ```
 4. Run the copied project, don't forget to change your port number if you are running locally:
 ```sh
-go run main.go -svrmode=clbt -port=8081
+go run main.go -mode=clbt -port=8081
 ```
 5. Now the distributed servers are available at:
 ```
