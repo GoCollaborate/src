@@ -23,6 +23,7 @@ const (
 	DefaultNotCleanHistory = false
 	Mapper                 = "Mapper"
 	Reducer                = "Reducer"
+	Executor               = "Executor"
 	Function               = "Function"
 	HashFunction           = "HashFunction"
 	Shared                 = "Shared"

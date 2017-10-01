@@ -140,6 +140,10 @@ func (fs *FS) SetReducer(rd reducer.Reducer, name string) {
 	fs.executors[name] = exe
 }
 
+func (fs *FS) SetExecutor(exe executor.Executor, name string) {
+	fs.executors[name] = exe
+}
+
 func (fs *FS) GetExecutor(name string) (executor.Executor, error) {
 	if exe := fs.executors[name]; exe != nil {
 		return exe, nil

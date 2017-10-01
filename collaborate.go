@@ -6,6 +6,7 @@ import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/remote/coordinator"
+	"github.com/GoCollaborate/server/executor"
 	"github.com/GoCollaborate/server/mapper"
 	"github.com/GoCollaborate/server/reducer"
 	"github.com/GoCollaborate/server/task"
@@ -26,6 +27,9 @@ func Set(key string, val ...interface{}) interface{} {
 	case constants.Reducer:
 		fs := store.GetInstance()
 		fs.SetReducer(val[0].(reducer.Reducer), val[1].(string))
+	case constants.Executor:
+		fs := store.GetInstance()
+		fs.SetExecutor(val[0].(executor.Executor), val[1].(string))
 	case constants.Function:
 		// register function
 		fs := store.GetInstance()
