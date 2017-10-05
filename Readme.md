@@ -21,8 +21,8 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ### 0.2.x
 #### 0.2.3
 - Rewrite the project structrue
-- Full gossipping supported
-- Rate limiting support
+- Support full gossipping
+- Support rate limiting
 #### 0.2.2
 - Integrate with GoCollaborate UI (http://localhost:8080)
 - Refine web routes structrue
