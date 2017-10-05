@@ -1,23 +1,27 @@
 package store
 
 import (
+	"github.com/GoCollaborate/artifacts/iexecutor"
+	"github.com/GoCollaborate/artifacts/imapper"
+	"github.com/GoCollaborate/artifacts/ireducer"
+	"github.com/GoCollaborate/artifacts/message"
+	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/server/executor"
-	"github.com/GoCollaborate/server/mapper"
-	"github.com/GoCollaborate/server/reducer"
-	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/utils"
 	"github.com/gorilla/mux"
+	"golang.org/x/time/rate"
 	"net/http"
 	"sync"
 	"time"
 )
 
 var router *mux.Router
+var msgChan chan *message.CardMessageFuture
 var singleton *FS
 var once sync.Once
 var onceRouter sync.Once
+var onceMsgChan sync.Once
 var mu sync.Mutex
 
 type color int
@@ -35,6 +39,13 @@ func GetRouter() *mux.Router {
 	return router
 }
 
+func GetMsgChan() chan *message.CardMessageFuture {
+	onceMsgChan.Do(func() {
+		msgChan = make(chan *message.CardMessageFuture)
+	})
+	return msgChan
+}
+
 func GetInstance() *FS {
 	once.Do(func() {
 		singleton = &FS{make(map[string]func(source *[]task.Countable,
@@ -42,12 +53,13 @@ func GetInstance() *FS {
 			context *task.TaskContext) chan bool),
 			make(map[string]chan bool),
 			make(map[string]*color),
-			make(map[string]executor.Executor),
+			make(map[string]iexecutor.IExecutor),
 			make(map[string]*task.Job),
 			make(map[string]*JobFunc),
-			make(map[string]*JobFunc)}
-		singleton.sweep()
+			make(map[string]*JobFunc),
+			make(map[string]*rate.Limiter)}
 	})
+	singleton.sweep()
 	return singleton
 }
 
@@ -57,10 +69,11 @@ type FS struct {
 		context *task.TaskContext) chan bool
 	Outbound   map[string]chan bool
 	memstack   map[string]*color
-	executors  map[string]executor.Executor
+	executors  map[string]iexecutor.IExecutor
 	jobs       map[string]*task.Job
 	SharedJobs map[string]*JobFunc
 	LocalJobs  map[string]*JobFunc
+	limiters   map[string]*rate.Limiter
 }
 
 type JobFunc struct {
@@ -126,29 +139,29 @@ func (fs *FS) Listen(id string) chan bool {
 	return out
 }
 
-func (fs *FS) SetMapper(mp mapper.Mapper, name string) {
-	exe := executor.Default()
+func (fs *FS) SetMapper(mp imapper.IMapper, name string) {
+	exe := iexecutor.Default()
 	exe.Todo(mp.Map)
 	exe.Type(constants.ExecutorTypeMapper)
 	fs.executors[name] = exe
 }
 
-func (fs *FS) SetReducer(rd reducer.Reducer, name string) {
-	exe := executor.Default()
+func (fs *FS) SetReducer(rd ireducer.IReducer, name string) {
+	exe := iexecutor.Default()
 	exe.Todo(rd.Reduce)
 	exe.Type(constants.ExecutorTypeReducer)
 	fs.executors[name] = exe
 }
 
-func (fs *FS) SetExecutor(exe executor.Executor, name string) {
+func (fs *FS) SetExecutor(exe iexecutor.IExecutor, name string) {
 	fs.executors[name] = exe
 }
 
-func (fs *FS) GetExecutor(name string) (executor.Executor, error) {
+func (fs *FS) GetExecutor(name string) (iexecutor.IExecutor, error) {
 	if exe := fs.executors[name]; exe != nil {
 		return exe, nil
 	}
-	return executor.Default(), constants.ErrExecutorNotFound
+	return iexecutor.Default(), constants.ErrExecutorNotFound
 }
 
 func (fs *FS) SetJob(j *task.Job) {
@@ -196,6 +209,18 @@ func (fs *FS) AddShared(methods []string, jobs ...func(w http.ResponseWriter, r 
 		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
 		fs.SharedJobs[signature] = &JobFunc{f, methods, signature}
 	}
+}
+
+func (fs *FS) SetLimiter(name string, r rate.Limit, b int) {
+	fs.limiters[name] = rate.NewLimiter(r, b)
+}
+
+func (fs *FS) GetLimiter(name string) (*rate.Limiter, error) {
+	lim := fs.limiters[name]
+	if lim != nil {
+		return lim, nil
+	}
+	return lim, constants.ErrLimiterNotFound
 }
 
 func (fs *FS) sweep() {

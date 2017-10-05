@@ -1,21 +1,23 @@
 package collaborate
 
 import (
+	"github.com/GoCollaborate/artifacts/iexecutor"
+	"github.com/GoCollaborate/artifacts/imapper"
+	"github.com/GoCollaborate/artifacts/ireducer"
+	"github.com/GoCollaborate/artifacts/master"
+	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/collaborator"
 	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/coordinator"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/remote/coordinator"
-	"github.com/GoCollaborate/server/executor"
-	"github.com/GoCollaborate/server/mapper"
-	"github.com/GoCollaborate/server/reducer"
-	"github.com/GoCollaborate/server/task"
-	"github.com/GoCollaborate/server/workable"
 	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
+	"golang.org/x/time/rate"
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 )
 
 func Set(key string, val ...interface{}) interface{} {
@@ -23,13 +25,13 @@ func Set(key string, val ...interface{}) interface{} {
 	switch key {
 	case constants.Mapper:
 		fs := store.GetInstance()
-		fs.SetMapper(val[0].(mapper.Mapper), val[1].(string))
+		fs.SetMapper(val[0].(imapper.IMapper), val[1].(string))
 	case constants.Reducer:
 		fs := store.GetInstance()
-		fs.SetReducer(val[0].(reducer.Reducer), val[1].(string))
+		fs.SetReducer(val[0].(ireducer.IReducer), val[1].(string))
 	case constants.Executor:
 		fs := store.GetInstance()
-		fs.SetExecutor(val[0].(executor.Executor), val[1].(string))
+		fs.SetExecutor(val[0].(iexecutor.IExecutor), val[1].(string))
 	case constants.Function:
 		// register function
 		fs := store.GetInstance()
@@ -70,6 +72,19 @@ func Set(key string, val ...interface{}) interface{} {
 
 		// register jobs
 		fs.AddLocal(methods, handlers...)
+	case constants.Limit:
+		var (
+			fs    = store.GetInstance()
+			limit = constants.DefaultJobRequestRefillInterval
+			burst = constants.DefaultJobRequestBurst
+		)
+		if len(val) > 1 {
+			limit = val[1].(time.Duration)
+		}
+		if len(val) > 2 {
+			burst = val[2].(int)
+		}
+		fs.SetLimiter(val[0].(string), rate.Every(limit), burst)
 	case constants.ProjectPath:
 		constants.ProjectDir = val[0].(string)
 	}
@@ -109,7 +124,7 @@ func Run(vars ...*cmd.SysVars) {
 		// create collaborator
 		clbt := collaborator.NewCollaborator()
 
-		mst := workable.NewMaster()
+		mst := master.NewMaster()
 		mst.BatchAttach(runVars.MaxRoutines)
 		mst.LaunchAll()
 

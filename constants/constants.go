@@ -28,11 +28,13 @@ const (
 	HashFunction           = "HashFunction"
 	Shared                 = "Shared"
 	Local                  = "Local"
+	Limit                  = "Limit"
 	ProjectPath            = "ProjectPath"
 	DefaultWorkerPerMaster = 10
 	DefaultHost            = "localhost"
 	DefaultGossipNum       = 5
 	DefaultCaseID          = "GoCollaborateStandardCase"
+	DefaultJobRequestBurst = 1000
 )
 
 // store setting
@@ -41,17 +43,18 @@ const (
 )
 
 var (
-	DefaultReadTimeout         = 15 * time.Second
-	DefaultPeriodShort         = 500 * time.Millisecond
-	DefaultPeriodLong          = 2000 * time.Millisecond
-	DefaultPeriodRoutineDay    = 24 * time.Hour
-	DefaultPeriodRoutineWeek   = 7 * 24 * time.Hour
-	DefaultPeriodRoutine30Days = 30 * DefaultPeriodRoutineDay
-	DefaultPeriodPermanent     = 0 * time.Second
-	DefaultTaskExpireTime      = 30 * time.Second
-	DefaultGCInterval          = 30 * time.Second
-	DefaultMaxMappingTime      = 600 * time.Second
-	DefaultSynInterval         = 3 * time.Minute
+	DefaultReadTimeout              = 15 * time.Second
+	DefaultPeriodShort              = 500 * time.Millisecond
+	DefaultPeriodLong               = 2000 * time.Millisecond
+	DefaultPeriodRoutineDay         = 24 * time.Hour
+	DefaultPeriodRoutineWeek        = 7 * 24 * time.Hour
+	DefaultPeriodRoutine30Days      = 30 * DefaultPeriodRoutineDay
+	DefaultPeriodPermanent          = 0 * time.Second
+	DefaultTaskExpireTime           = 30 * time.Second
+	DefaultGCInterval               = 30 * time.Second
+	DefaultMaxMappingTime           = 600 * time.Second
+	DefaultSynInterval              = 3 * time.Minute
+	DefaultJobRequestRefillInterval = 1 * time.Millisecond
 )
 
 // executor types
@@ -109,12 +112,15 @@ var (
 	ErrFunctNotExist                   = errors.New("GoCollaborate: no such function found in store")
 	ErrJobNotExist                     = errors.New("GoCollaborate: no sucn job found in store")
 	ErrExecutorNotFound                = errors.New("GoCollaborate: no such executor found in store")
+	ErrLimiterNotFound                 = errors.New("GoCollaborate: no such limiter found in store")
 	ErrValNotFound                     = errors.New("GoCollaborate: no value found with such key")
 	ErrCaseMismatch                    = errors.New("GoCollaborate: case mismatch error")
 	ErrCollaboratorMismatch            = errors.New("GoCollaborate: collaborator mismatch error")
+	ErrUnknownMsgType                  = errors.New("GoCollaborate: unknown message type error")
 	ErrMapTaskFailing                  = errors.New("GoCollaborate: map operation failing error")
 	ErrReduceTaskFailing               = errors.New("GoCollaborate: reduce operation failing error")
 	ErrExecutorStackLengthInconsistent = errors.New("GoCollaborate: executor stack length inconsistent error")
+	ErrMessageChannelDirty             = errors.New("GoCollaborate: message channel has unconsumed message error")
 )
 
 type Header struct {
@@ -131,6 +137,7 @@ var (
 	Header403Forbidden        = Header{"403", "Forbidden"}
 	Header404NotFound         = Header{"404", "NotFound"}
 	Header409Conflict         = Header{"409", "Conflict"}
+	Header422ExceedLimit      = Header{"422", "ExceedLimit"}
 	HeaderContentTypeJSON     = Header{"Content-Type", "application/json"}
 	HeaderContentTypeText     = Header{"Content-Type", "text/html"}
 	HeaderCORSEnableAllOrigin = Header{"Access-Control-Allow-Origin", "*"}
@@ -139,6 +146,7 @@ var (
 // Gossip Protocol headers
 var (
 	GossipHeaderOK                   = Header{"200", "OK"}
+	GossipHeaderUnknownMsgType       = Header{"400", "UnknownMessageType"}
 	GossipHeaderCaseMismatch         = Header{"401", "CaseMismatch"}
 	GossipHeaderCollaboratorMismatch = Header{"401", "CollaboratorMismatch"}
 	GossipHeaderUnknownError         = Header{"500", "UnknownGossipError"}

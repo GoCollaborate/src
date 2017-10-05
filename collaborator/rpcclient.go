@@ -1,24 +1,22 @@
 package collaborator
 
 import (
+	"github.com/GoCollaborate/artifacts/message"
+	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/remote/remoteshared"
-	"github.com/GoCollaborate/server/task"
 	"net/rpc"
 )
 
 type RemoteMethods interface {
-	Exchange(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error
-	Disconnect(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error
-	// Distribute(source []*task.Task, result *[]*task.Task) error
-	SyncDistribute(source *map[int]*task.Task, result *map[int]*task.Task) error
+	Exchange(in *message.CardMessage, out *message.CardMessage) error
+	DistributeSync(source *map[int]*task.Task, result *map[int]*task.Task) error
 }
 
 type RPCClient struct {
 	Client *rpc.Client
 }
 
-func (c *RPCClient) Exchange(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
+func (c *RPCClient) Exchange(in *message.CardMessage, out *message.CardMessage) error {
 	err := c.Client.Call("RemoteMethods.Exchange", in, out)
 	if err != nil {
 		logger.LogError(err.Error())
@@ -27,26 +25,7 @@ func (c *RPCClient) Exchange(in *remoteshared.CardMessage, out *remoteshared.Car
 	return nil
 }
 
-func (c *RPCClient) Disconnect(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
-	err := c.Client.Call("RemoteMethods.Disconnect", in, out)
-	if err != nil {
-		logger.LogError(err.Error())
-		return err
-	}
-	return nil
-}
-
-// func (c *RPCClient) Distribute(source []*task.Task, result *[]*task.Task) error {
-// 	go func() {
-// 		err := c.Client.Call("RemoteMethods.Distribute", source, result)
-// 		if err != nil {
-// 			logger.LogError("Connection Error:" + err.Error())
-// 		}
-// 	}()
-// 	return nil
-// }
-
-func (c *RPCClient) SyncDistribute(source *map[int]*task.Task, result *map[int]*task.Task) chan *task.Task {
+func (c *RPCClient) DistributeSync(source *map[int]*task.Task, result *map[int]*task.Task) chan *task.Task {
 	ch := make(chan *task.Task)
 	go func() {
 		defer close(ch)

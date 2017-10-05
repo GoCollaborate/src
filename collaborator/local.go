@@ -1,52 +1,31 @@
 package collaborator
 
 import (
+	"github.com/GoCollaborate/artifacts/iworkable"
+	"github.com/GoCollaborate/artifacts/message"
+	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/remote/remoteshared"
-	"github.com/GoCollaborate/server"
-	"github.com/GoCollaborate/server/task"
+	"github.com/GoCollaborate/wrappers/messageHelper"
 )
 
 type LocalMethods struct {
-	workable server.Workable
+	workable iworkable.Workable
 }
 
-func NewLocalMethods(wk server.Workable) *LocalMethods {
+func NewLocalMethods(wk iworkable.Workable) *LocalMethods {
 	return &LocalMethods{wk}
 }
 
-func (l *LocalMethods) Exchange(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
+func (l *LocalMethods) Exchange(in *message.CardMessage, out *message.CardMessage) error {
 	logger.LogNormal("Card message from another Collaborator received")
-
-	err := RemoteLoad(in, out)
-
-	if err != nil {
-		return err
-	}
-	return nil
+	err := messageHelper.Exchange(in, out)
+	return err
 }
 
-func (l *LocalMethods) Disconnect(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
-	from := in.From()
-	logger.LogNormal("Disconnect:" + from.GetFullIP())
-
-	err := RemoteDisconnect(in, out)
-
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (l *LocalMethods) SyncDistribute(source *map[int]*task.Task, result *map[int]*task.Task) error {
+func (l *LocalMethods) DistributeSync(source *map[int]*task.Task, result *map[int]*task.Task) error {
 	logger.LogNormal("Task from another Collaborator received")
 	s := *source
-
 	err := l.workable.DoneMulti(s)
-	if err != nil {
-		return err
-	}
-
 	*result = s
-	return nil
+	return err
 }

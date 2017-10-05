@@ -2,16 +2,20 @@ package collaborator
 
 import (
 	"fmt"
+	"github.com/GoCollaborate/artifacts/card"
+	"github.com/GoCollaborate/artifacts/iexecutor"
+	"github.com/GoCollaborate/artifacts/iremote"
+	"github.com/GoCollaborate/artifacts/iworkable"
+	"github.com/GoCollaborate/artifacts/message"
+	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/remote/remoteshared"
-	"github.com/GoCollaborate/server"
-	"github.com/GoCollaborate/server/executor"
-	"github.com/GoCollaborate/server/task"
 	"github.com/GoCollaborate/store"
 	"github.com/GoCollaborate/utils"
 	"github.com/GoCollaborate/web"
+	"github.com/GoCollaborate/wrappers/cardHelper"
+	"github.com/GoCollaborate/wrappers/messageHelper"
 	"github.com/gorilla/mux"
 	"net"
 	"net/http"
@@ -26,26 +30,34 @@ const (
 	UPDATEINTERVAL     time.Duration = 1
 )
 
-// Collaborator is a helper struct to operate on any inner trxs
+// Collaborator is a helper struct to operate on any inner trxs.
 type Collaborator struct {
 	CardCase Case
-	Workable server.Workable
+	Workable iworkable.Workable
 }
 
 func NewCollaborator() *Collaborator {
-	return &Collaborator{*newCase(), server.Dummy()}
+	return &Collaborator{*newCase(), iworkable.Dummy()}
 }
 
 func newCase() *Case {
-	return &Case{cmd.Vars().CaseID, Exposed{make(map[string]remoteshared.Card), time.Now().Unix()}, Reserved{*remoteshared.Default(), remoteshared.Card{}}}
+	return &Case{cmd.Vars().CaseID, Exposed{make(map[string]card.Card), time.Now().Unix()}, Reserved{*card.Default(), card.Card{}}}
 }
 
-func (clbt *Collaborator) Join(wk server.Workable) {
+// Join a master to the collaborator network.
+func (clbt *Collaborator) Join(wk iworkable.Workable) {
 	clbt.Workable = wk
 
-	err := populate(&clbt.CardCase)
+	err := clbt.CardCase.readStream()
 	if err != nil {
 		panic(err)
+	}
+
+	// update if the read in timestamp is later than now
+	if now := time.Now().Unix(); clbt.CardCase.Digest().TimeStamp() > now {
+		clbt.CardCase.TimeStamp = now
+		logger.LogWarning("The read in timestamp conflicts with local clock")
+		logger.GetLoggerInstance().LogNormal("The read in timestamp conflicts with local clock")
 	}
 
 	logger.LogNormal("Case Identifier:")
@@ -59,65 +71,47 @@ func (clbt *Collaborator) Join(wk server.Workable) {
 	logger.GetLoggerInstance().LogNormal("Local Address:")
 	logger.GetLoggerInstance().LogListPoint(ip)
 
-	logger.LogNormal("Cards:")
+	cards := clbt.CardCase.Digest().Cards()
 
-	cp := clbt.CardCase.Cards()
-
-	for _, h := range cp {
-		var alive string
-		if h.Alive {
-			alive = "Alive"
-		} else {
-			alive = "Terminated"
-		}
-		logger.LogListPoint(h.GetFullIP(), alive)
-		logger.GetLoggerInstance().LogListPoint(h.GetFullIP(), alive)
-	}
+	cardHelper.RangePrint(cards)
 
 	local := clbt.CardCase.Local
 
+	// update if self does not exist
 	if card, ok := clbt.CardCase.Exposed.Cards[local.GetFullIP()]; !ok || !card.IsEqualTo(&local) {
 
 		clbt.CardCase.Exposed.Cards[local.GetFullIP()] = local
 		clbt.CardCase.Stamp()
-		clbt.CardCase.writeStream()
 	}
+
+	// start active message handler
+	clbt.CardCase.Action()
 
 	clbt.launchServer()
 
 	go func() {
-		// start looking for other peer Collaborators
-		clbt.Catchup()
-
 		for {
-			<-time.After(constants.DefaultSynInterval)
-			err := populate(&clbt.CardCase)
-			if err != nil {
-				panic(err)
-				return
-			}
 			clbt.Catchup()
+			<-time.After(constants.DefaultSynInterval)
 			// clean collaborators that are no longer alive
 			clbt.Clean()
+			// dump data to local store
+			clbt.CardCase.writeStream()
 		}
 	}()
-
-	/*
-		stop the rpc connection at any time by calling Disconnect() function
-	*/
-	// Case.Disconnect()
 }
 
-// bridge to peer servers
+// Catchup with peer servers.
 func (clbt *Collaborator) Catchup() {
 	c := &clbt.CardCase
 
-	cp := c.Cards()
+	dgst := c.Digest()
+	cards := dgst.Cards()
 
 	max := cmd.Vars().GossipNum
 	done := 0
 
-	for key, e := range cp {
+	for key, e := range cards {
 		// stop gossipping if already walk through max nodes
 		if done > max {
 			break
@@ -138,19 +132,20 @@ func (clbt *Collaborator) Catchup() {
 
 			from := c.Local.GetFullExposureCard()
 			to := e
-			var in *remoteshared.CardMessage = remoteshared.NewCardMessageWithOptions(c.Cluster(), from, to, c.Cards(), c.TimeStamp())
-			var out *remoteshared.CardMessage = remoteshared.NewCardMessage()
+			var in *message.CardMessage = message.NewCardMessageWithOptions(c.Cluster(), from, to, dgst.Cards(), dgst.TimeStamp(), iremote.MsgTypeSync)
+			var out *message.CardMessage = message.NewCardMessage()
+			var out2 *message.CardMessage = message.NewCardMessage()
+			var out3 *message.CardMessage = message.NewCardMessage()
+			// first exchange
 			err = client.Exchange(in, out)
-
+			// local update exchange
+			err = messageHelper.Exchange(out, out2)
+			// second exchange
+			err = client.Exchange(out2, out3)
 			if err != nil {
 				logger.LogWarning("Calling method failed while bridging")
 				logger.GetLoggerInstance().LogWarning("Calling method failed while bridging")
 				continue
-			}
-
-			if Compare(c, out) {
-				cs, _ := Merge(c, out)
-				cs.writeStream()
 			}
 		}
 
@@ -158,29 +153,23 @@ func (clbt *Collaborator) Catchup() {
 	}
 }
 
+// Clean up the case, release terminated servers.
 func (clbt *Collaborator) Clean() {
-	cp := clbt.CardCase.Cards()
-	for k, c := range cp {
+
+	cards := clbt.CardCase.Digest().Cards()
+
+	for k, c := range cards {
 		if !c.Alive {
 			clbt.CardCase.Terminate(k)
 		}
 	}
-	clbt.CardCase.writeStream()
 
-	cp = clbt.CardCase.Cards()
+	cards = clbt.CardCase.Digest().Cards()
 
-	logger.LogNormal("Cards:")
-	for _, h := range cp {
-		var alive string
-		if h.Alive {
-			alive = "Alive"
-		} else {
-			alive = "Terminated"
-		}
-		logger.LogListPoint(h.GetFullIP(), alive)
-	}
+	cardHelper.RangePrint(cards)
 }
 
+// Start handling server routes.
 func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 
 	// register dashboard
@@ -201,7 +190,7 @@ func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 		logger.GetLoggerInstance().LogListPoint(jobFunc.Signature)
 
 		// shared registry
-		clbt.HandleShared(router, jobFunc.Signature, jobFunc)
+		clbt.HandleShared(router, jobFunc)
 	}
 
 	for _, jobFunc := range fs.LocalJobs {
@@ -210,17 +199,19 @@ func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 		logger.GetLoggerInstance().LogNormal("Job Linked:")
 		logger.GetLoggerInstance().LogListPoint(jobFunc.Signature)
 		// local registry
-		clbt.HandleLocal(router, jobFunc.Signature, jobFunc)
+		clbt.HandleLocal(router, jobFunc)
 	}
 	return router
 }
 
-func (clbt *Collaborator) SyncDistribute(sources map[int]*task.Task) (map[int]*task.Task, error) {
-	cc := clbt.CardCase
-	l1 := len(sources)
-	l2 := len(cc.Cards())
+// Distribute tasks to peer servers, this is a synchronized function.
+func (clbt *Collaborator) DistributeSync(sources map[int]*task.Task) (map[int]*task.Task, error) {
 
 	var (
+		cc                         = clbt.CardCase
+		dgst                       = cc.Digest()
+		l1                         = len(sources)
+		l2                         = len(dgst.Cards())
 		result  map[int]*task.Task = make(map[int]*task.Task)
 		counter int                = 0
 	)
@@ -263,7 +254,7 @@ func (clbt *Collaborator) SyncDistribute(sources map[int]*task.Task) (map[int]*t
 		// copy a pointer for concurrent map access
 		s := make(map[int]*task.Task)
 		s[k] = v
-		chs[k] = client.SyncDistribute(&s, &s)
+		chs[k] = client.DistributeSync(&s, &s)
 	}
 
 	// Wait for responses
@@ -308,7 +299,7 @@ func (c *Collaborator) launchServer() {
 }
 
 func launchClient(endpoint string, port int) (*RPCClient, error) {
-	clientContact := remoteshared.Card{endpoint, port, true, ""}
+	clientContact := card.Card{endpoint, port, true, ""}
 	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
 		logger.LogError("Dialing:", err)
@@ -319,57 +310,82 @@ func launchClient(endpoint string, port int) (*RPCClient, error) {
 	return Card, nil
 }
 
-func (clbt *Collaborator) HandleLocal(router *mux.Router, api string, jobFunc *store.JobFunc) {
-	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-		job := jobFunc.F(w, r)
-		var (
-			counter = 0
-		)
-		for s := job.Front(); s != nil; s = s.Next() {
-			exes, err := job.Exes(counter)
-			if err != nil {
-				logger.GetLoggerInstance().LogError(err)
-				break
+// Handle local Job routes.
+func (clbt *Collaborator) HandleLocal(router *mux.Router, jobFunc *store.JobFunc) {
+
+	var (
+		f = func(w http.ResponseWriter, r *http.Request) {
+			job := jobFunc.F(w, r)
+			var (
+				counter = 0
+			)
+			for s := job.Front(); s != nil; s = s.Next() {
+				exes, err := job.Exes(counter)
+				if err != nil {
+					logger.GetLoggerInstance().LogError(err)
+					break
+				}
+				err = clbt.LocalDistribute(&s.TaskSet, exes)
+				if err != nil {
+					logger.GetLoggerInstance().LogError(err)
+					break
+				}
+				counter++
 			}
-			err = clbt.LocalDistribute(&s.TaskSet, exes)
-			if err != nil {
-				logger.GetLoggerInstance().LogError(err)
-				break
-			}
-			counter++
 		}
-	}).Methods(jobFunc.Methods...).Name("Local Tasks")
+		fs = store.GetInstance()
+	)
+
+	lim, err := fs.GetLimiter(jobFunc.Signature)
+	if err == nil {
+		f = utils.AdaptLimiter(lim, f)
+	}
+
+	router.HandleFunc(jobFunc.Signature, f).Methods(jobFunc.Methods...).Name("Local Tasks")
 }
 
-func (clbt *Collaborator) HandleShared(router *mux.Router, api string, jobFunc *store.JobFunc) {
-	router.HandleFunc(api, func(w http.ResponseWriter, r *http.Request) {
-		job := jobFunc.F(w, r)
-		var (
-			counter = 0
-		)
-		for s := job.Front(); s != nil; s = s.Next() {
-			exes, err := job.Exes(counter)
-			if err != nil {
-				logger.GetLoggerInstance().LogError(err)
-				break
-			}
+// Handle shared Job routes.
+func (clbt *Collaborator) HandleShared(router *mux.Router, jobFunc *store.JobFunc) {
 
-			err = clbt.SharedDistribute(&s.TaskSet, exes)
-			if err != nil {
-				logger.GetLoggerInstance().LogError(err)
-				break
+	var (
+		f = func(w http.ResponseWriter, r *http.Request) {
+			job := jobFunc.F(w, r)
+			var (
+				counter = 0
+			)
+			for s := job.Front(); s != nil; s = s.Next() {
+				exes, err := job.Exes(counter)
+				if err != nil {
+					logger.GetLoggerInstance().LogError(err)
+					break
+				}
+
+				err = clbt.SharedDistribute(&s.TaskSet, exes)
+				if err != nil {
+					logger.GetLoggerInstance().LogError(err)
+					break
+				}
+				counter++
 			}
-			counter++
 		}
-	}).Methods(jobFunc.Methods...).Name("Shared Tasks")
+		fs = store.GetInstance()
+	)
+
+	lim, err := fs.GetLimiter(jobFunc.Signature)
+	if err == nil {
+		f = utils.AdaptLimiter(lim, f)
+	}
+
+	router.HandleFunc(jobFunc.Signature, f).Methods(jobFunc.Methods...).Name("Shared Tasks")
 }
 
+// The function will process the tasks locally.
 func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, exe []string) error {
 	clbt.Workable.Enqueue(*pmaps)
 	return nil
 }
 
-// SharedDistribute will process the tasks of the same stage in memory
+// The function will process the tasks globally within the cluster network.
 func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []string) error {
 	var (
 		err  error
@@ -378,7 +394,7 @@ func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []s
 	)
 	for _, stack := range stacks {
 		var (
-			exe executor.Executor
+			exe iexecutor.IExecutor
 		)
 		exe, err = fs.GetExecutor(stack)
 
@@ -393,7 +409,7 @@ func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []s
 			if err != nil {
 				return err
 			}
-			maps, err = clbt.SyncDistribute(maps)
+			maps, err = clbt.DistributeSync(maps)
 			// reducer
 		case constants.ExecutorTypeReducer:
 			maps, err = exe.Execute(maps)
@@ -412,6 +428,7 @@ func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []s
 	return nil
 }
 
+// Execute the tasks after satisfying some certain conditions.
 func (clbt *Collaborator) DelayExecute(t *task.Task) chan *task.Task {
 	ch := make(chan *task.Task)
 

@@ -3,6 +3,8 @@ package utils
 import (
 	"github.com/GoCollaborate/constants"
 	"github.com/gorilla/mux"
+	"golang.org/x/time/rate"
+	"io"
 	"net/http"
 	"net/http/pprof"
 )
@@ -24,4 +26,17 @@ func AdaptHTTPWithHeader(w http.ResponseWriter,
 	header constants.Header) http.ResponseWriter {
 	w.Header().Add(header.Key, header.Value)
 	return w
+}
+
+// AdaptLimiter adapts the HTTP handler f to a limited handler that allows events up to rate lr and permits bursts of at most lb tokens.
+func AdaptLimiter(lim *rate.Limiter, f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !lim.Allow() {
+			AdaptHTTPWithHeader(w, constants.Header422ExceedLimit)
+			io.WriteString(w, "Job request exceeds the maximum handling limit, please try later.\n")
+			return
+		}
+		f(w, r)
+		return
+	}
 }

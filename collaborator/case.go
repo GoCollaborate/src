@@ -2,9 +2,14 @@ package collaborator
 
 import (
 	"encoding/json"
+	"github.com/GoCollaborate/artifacts/card"
+	"github.com/GoCollaborate/artifacts/digest"
+	"github.com/GoCollaborate/artifacts/iremote"
+	"github.com/GoCollaborate/artifacts/message"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/remote/remoteshared"
+	"github.com/GoCollaborate/store"
+	"github.com/GoCollaborate/wrappers/messageHelper"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -20,153 +25,53 @@ type Case struct {
 }
 
 type Exposed struct {
-	Cards     map[string]remoteshared.Card `json:"cards,omitempty"`
-	TimeStamp int64                        `json:"timestamp,omitempty"`
+	Cards     map[string]card.Card `json:"cards,omitempty"`
+	TimeStamp int64                `json:"timestamp,omitempty"`
 }
 
 type Reserved struct {
-	// local is the local Card representation
-	Local       remoteshared.Card `json:"local,omitempty"`
-	Coordinator remoteshared.Card `json:"coordinator,omitempty"`
+	// local is the Card of localhost
+	Local       card.Card `json:"local,omitempty"`
+	Coordinator card.Card `json:"coordinator,omitempty"`
 }
 
-func populate(cb *Case) error {
+func (c *Case) readStream() error {
 	bytes, err := ioutil.ReadFile(constants.DefaultCasePath)
 	if err != nil {
 		panic(err)
 	}
 	// unmarshal, overwrite default if already existed in config file
-	if err := json.Unmarshal(bytes, &cb); err != nil {
+	if err := json.Unmarshal(bytes, &c); err != nil {
 		logger.LogError(err.Error())
 		return err
 	}
 	return nil
 }
 
-func (c *Case) Disconnect() {
-	for _, e := range c.Cards() {
-		if e.Alive && (!e.IsEqualTo(&c.Local)) {
-			client, err := launchClient(e.IP, e.Port)
-			if err != nil {
-				logger.LogWarning("Connection failed while disconnecting")
-				continue
-			}
-
-			from := c.Local.GetFullExposureCard()
-			to := e
-			var in *remoteshared.CardMessage = remoteshared.NewCardMessageWithOptions(c.Cluster(), from, to, c.Cards(), c.TimeStamp())
-			var out *remoteshared.CardMessage = remoteshared.NewCardMessage()
-			err = client.Disconnect(in, out)
-
-			if err != nil {
-				logger.LogWarning("Calling method failed while disconnecting")
-				continue
-			}
-			if Compare(c, out) {
-				cs, _ := Merge(c, out)
-				cs.writeStream()
-			}
-		}
-	}
-}
-
-func RemoteLoad(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
-	var (
-		local *Case = new(Case)
-		err   error
-	)
-
-	err = populate(local)
-
-	if err != nil {
-		return err
-	}
-
-	err = local.Validate(in, out)
-	if err != nil {
-		return err
-	}
-
-	var (
-		update bool              = false
-		from   remoteshared.Card = in.From()
-	)
-
-	update = Compare(local, in)
-
-	cp := local.Cards()
-
-	if h, ok := cp[from.GetFullIP()]; !ok || !h.IsEqualTo(&from) {
-		local.Exposed.Cards[from.GetFullIP()] = from
-		local.Stamp()
-		update = true
-	}
-
-	if update {
-		local.writeStream()
-	}
-
-	// update local config to remote call
-	out.SetCards(local.Cards())
-	out.SetTimeStamp(local.TimeStamp())
-	out.SetStatus(constants.GossipHeaderOK)
-
-	return nil
-}
-
-func RemoteDisconnect(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
-	var (
-		local *Case = new(Case)
-		err   error
-	)
-
-	err = populate(local)
-	if err != nil {
-		return err
-	}
-
-	err = local.Validate(in, out)
-	if err != nil {
-		return err
-	}
-
-	var (
-		from   remoteshared.Card = in.From()
-		key                      = from.GetFullIP()
-		update bool              = false
-	)
-
-	update = Compare(local, in)
-
-	cp := local.Cards()
-
-	if h, ok := cp[key]; ok && h.IsEqualTo(&from) {
-		local.Terminate(key)
-		local.Stamp()
-		Merge(local, in)
-		update = true
-	}
-
-	if update {
-		local.writeStream()
-	}
-
-	// update local config to remote call
-	out.SetCards(local.Cards())
-	out.SetTimeStamp(local.TimeStamp())
-	out.SetStatus(constants.GossipHeaderOK)
-
-	return nil
-}
-
-func (c *Case) writeStream() {
+func (c *Case) writeStream() error {
 	mu.Lock()
 	defer mu.Unlock()
 	mal, err := json.Marshal(&c)
 	err = ioutil.WriteFile(constants.DefaultCasePath, mal, os.ModeExclusive)
-	if err != nil {
-		logger.LogError(err)
-	}
+	return err
+}
+
+func (c *Case) Action() {
+	go func() {
+		for {
+			select {
+			case future := <-store.GetMsgChan():
+				defer future.Close()
+				out, err := c.HandleMessage(future.Receive())
+				if err != nil {
+					logger.LogError(err)
+				}
+				future.Return(out)
+			default:
+				continue
+			}
+		}
+	}()
 }
 
 func (c *Case) Stamp() *Case {
@@ -174,16 +79,17 @@ func (c *Case) Stamp() *Case {
 	return c
 }
 
-func (c *Case) Cards() map[string]remoteshared.Card {
-	return c.Exposed.Cards
-}
-
 func (c *Case) Cluster() string {
 	return c.CaseID
 }
 
-func (c *Case) TimeStamp() int64 {
-	return c.Exposed.TimeStamp
+func (c *Case) Digest() iremote.IDigest {
+	return &digest.Digest{c.Exposed.Cards, c.Exposed.TimeStamp}
+}
+
+func (c *Case) Update(dgst iremote.IDigest) {
+	c.Exposed.Cards = dgst.Cards()
+	c.Exposed.TimeStamp = dgst.TimeStamp()
 }
 
 func (c *Case) Terminate(key string) *Case {
@@ -193,7 +99,7 @@ func (c *Case) Terminate(key string) *Case {
 	return c
 }
 
-func (c *Case) ReturnByPos(pos int) remoteshared.Card {
+func (c *Case) ReturnByPos(pos int) card.Card {
 	mu.Lock()
 	defer mu.Unlock()
 	if l := len(c.Exposed.Cards); pos > l {
@@ -206,28 +112,67 @@ func (c *Case) ReturnByPos(pos int) remoteshared.Card {
 		}
 		counter++
 	}
-	return remoteshared.Card{}
+	return card.Card{}
 }
 
-func Compare(a remoteshared.ICardMessage, b remoteshared.ICardMessage) bool {
-	if a.TimeStamp() < b.TimeStamp() {
-		return true
+func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, error) {
+	// return if message is wrongly sent
+	var (
+		out *message.CardMessage = new(message.CardMessage)
+		err error                = nil
+	)
+
+	if err = c.Validate(in, out); err != nil {
+		return out, err
 	}
-	return false
-}
-
-func Merge(local *Case, remote *remoteshared.CardMessage) (*Case, *remoteshared.CardMessage) {
-	if local.TimeStamp() < remote.TimeStamp() {
-		local.Exposed.Cards = remote.Cards()
-		local.Exposed.TimeStamp = remote.TimeStamp()
-		return local, remote
+	var (
+		// local digest
+		ldgst = c.Digest()
+		// remote digest
+		rdgst = in.Digest()
+		// feedback digest
+		fbdgst = ldgst
+	)
+	switch in.Type() {
+	case iremote.MsgTypeSync:
+		// msg has a more recent timestamp
+		if messageHelper.Compare(ldgst, rdgst) {
+			fbdgst = messageHelper.Merge(ldgst, rdgst)
+			// update digest to local
+			c.Update(fbdgst)
+		}
+		// update digest to feedback
+		out.Update(fbdgst)
+		// return ack message
+		out.SetType(iremote.MsgTypeAck)
+		out.SetStatus(constants.GossipHeaderOK)
+	case iremote.MsgTypeAck:
+		// msg has a more recent timestamp
+		if messageHelper.Compare(ldgst, rdgst) {
+			fbdgst = messageHelper.Merge(ldgst, rdgst)
+			// update digest to local
+			c.Update(fbdgst)
+		}
+		// return ack message
+		out.SetType(iremote.MsgTypeAck2)
+		out.SetStatus(constants.GossipHeaderOK)
+	case iremote.MsgTypeAck2:
+		// return ack message
+		out.SetType(iremote.MsgTypeAck3)
+		out.SetStatus(constants.GossipHeaderOK)
+	case iremote.MsgTypeAck3:
+		// do nothing
+	default:
+		out.SetStatus(constants.GossipHeaderUnknownMsgType)
+		err = constants.ErrUnknownMsgType
 	}
-	remote.SetCards(local.Exposed.Cards)
-	remote.SetTimeStamp(local.Exposed.TimeStamp)
-	return local, remote
+	out.SetTo(in.From())
+	out.SetFrom(in.To())
+	out.SetCluster(c.Cluster())
+	return out, nil
 }
 
-func (c *Case) Validate(in *remoteshared.CardMessage, out *remoteshared.CardMessage) error {
+func (c *Case) Validate(in *message.CardMessage, out *message.CardMessage) error {
 	if c.Cluster() != in.Cluster() {
 		out.SetStatus(constants.GossipHeaderCaseMismatch)
 		return constants.ErrCaseMismatch
