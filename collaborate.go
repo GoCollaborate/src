@@ -87,6 +87,8 @@ func Set(key string, val ...interface{}) interface{} {
 		fs.SetLimiter(val[0].(string), rate.Every(limit), burst)
 	case constants.ProjectPath:
 		constants.ProjectDir = val[0].(string)
+	case constants.ProjectUnixPath:
+		constants.ProjectUnixDir = val[0].(string)
 	}
 	return nil
 }

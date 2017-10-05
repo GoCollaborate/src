@@ -30,6 +30,7 @@ const (
 	Local                  = "Local"
 	Limit                  = "Limit"
 	ProjectPath            = "ProjectPath"
+	ProjectUnixPath        = "ProjectUnixPath"
 	DefaultWorkerPerMaster = 10
 	DefaultHost            = "localhost"
 	DefaultGossipNum       = 5
