@@ -51,7 +51,7 @@ func GetInstance() *FS {
 		singleton = &FS{make(map[string]func(source *[]task.Countable,
 			result *[]task.Countable,
 			context *task.TaskContext) chan bool),
-			make(map[string]chan bool),
+			// make(map[string]chan bool),
 			make(map[string]*color),
 			make(map[string]iexecutor.IExecutor),
 			make(map[string]*task.Job),
@@ -67,7 +67,7 @@ type FS struct {
 	Funcs map[string]func(source *[]task.Countable,
 		result *[]task.Countable,
 		context *task.TaskContext) chan bool
-	Outbound   map[string]chan bool
+	// Outbound   map[string]chan bool
 	memstack   map[string]*color
 	executors  map[string]iexecutor.IExecutor
 	jobs       map[string]*task.Job
@@ -95,7 +95,7 @@ func (fs *FS) Add(f func(source *[]task.Countable,
 	mu.Lock()
 	defer mu.Unlock()
 	fs.Funcs[i] = f
-	fs.Outbound[i] = make(chan bool)
+	// fs.Outbound[i] = make(chan bool)
 }
 
 func (fs *FS) HAdd(f func(source *[]task.Countable,
@@ -106,38 +106,45 @@ func (fs *FS) HAdd(f func(source *[]task.Countable,
 	mu.Lock()
 	defer mu.Unlock()
 	fs.Funcs[hash] = f
-	fs.Outbound[hash] = make(chan bool)
+	// fs.Outbound[hash] = make(chan bool)
 	*fs.memstack[hash] = grey
 	return
 }
 
 func (fs *FS) Call(id string, source *[]task.Countable,
 	result *[]task.Countable,
-	context *task.TaskContext) {
+	context *task.TaskContext) bool {
+
+	var (
+		bol bool = false
+	)
 
 	if f := fs.Funcs[id]; f != nil {
 		if c := fs.memstack[id]; c != nil {
-			fs.Outbound[id] <- <-f(source, result, context)
+			// fs.Outbound[id] <- <-f(source, result, context)
+			bol = <-f(source, result, context)
 			*fs.memstack[id] = white
+			return bol
 		}
-		fs.Outbound[id] <- <-f(source, result, context)
-		return
+		bol = <-f(source, result, context)
+		// fs.Outbound[id] <- <-f(source, result, context)
+		return bol
 	}
 
 	logger.LogError(constants.ErrFunctNotExist)
-	return
+	return bol
 }
 
-func (fs *FS) Listen(id string) chan bool {
-	if o := fs.Outbound[id]; o != nil {
-		return o
-	}
-	logger.LogError(constants.ErrFunctNotExist)
-	out := make(chan bool)
-	defer close(out)
-	out <- false
-	return out
-}
+// func (fs *FS) Listen(id string) chan bool {
+// 	if o := fs.Outbound[id]; o != nil {
+// 		return o
+// 	}
+// 	logger.LogError(constants.ErrFunctNotExist)
+// 	out := make(chan bool)
+// 	defer close(out)
+// 	out <- false
+// 	return out
+// }
 
 func (fs *FS) SetMapper(mp imapper.IMapper, name string) {
 	exe := iexecutor.Default()
@@ -242,6 +249,6 @@ func (fs *FS) delete(id string) {
 	mu.Lock()
 	defer mu.Unlock()
 	delete(fs.Funcs, id)
-	delete(fs.Outbound, id)
+	// delete(fs.Outbound, id)
 	delete(fs.memstack, id)
 }

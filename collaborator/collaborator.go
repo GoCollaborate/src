@@ -380,8 +380,46 @@ func (clbt *Collaborator) HandleShared(router *mux.Router, jobFunc *store.JobFun
 }
 
 // The function will process the tasks locally.
-func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, exe []string) error {
+func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, stacks []string) error {
+	var (
+		err  error
+		fs   = store.GetInstance()
+		maps = *pmaps
+	)
+
+	for _, stack := range stacks {
+		var (
+			exe iexecutor.IExecutor
+		)
+		exe, err = fs.GetExecutor(stack)
+
+		if err != nil {
+			return err
+		}
+
+		switch exe.Type() {
+		// mapper
+		case constants.ExecutorTypeMapper:
+			maps, err = exe.Execute(maps)
+			if err != nil {
+				return err
+			}
+		// reducer
+		case constants.ExecutorTypeReducer:
+			maps, err = exe.Execute(maps)
+			if err != nil {
+				return err
+			}
+		default:
+			maps, err = exe.Execute(maps)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	*pmaps = maps
 	clbt.Workable.Enqueue(*pmaps)
+
 	return nil
 }
 

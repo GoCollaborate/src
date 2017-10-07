@@ -12,7 +12,7 @@ type Workable interface {
 	Detach(w *worker.Worker)
 	LaunchAll() error
 	Launch(ID uint) error
-	Enqueue(t map[int]*task.Task)
+	Enqueue(ts map[int]*task.Task) map[int]*task.TaskFuture
 	Done(*task.Task) error
 	DoneMulti(tsks map[int]*task.Task) error
 	CountTasks() []int
@@ -47,8 +47,8 @@ func (d *dummyWorkable) Launch(ID uint) error {
 	return nil
 }
 
-func (d *dummyWorkable) Enqueue(t map[int]*task.Task) {
-	return
+func (d *dummyWorkable) Enqueue(ts map[int]*task.Task) map[int]*task.TaskFuture {
+	return make(map[int]*task.TaskFuture)
 }
 
 func (d *dummyWorkable) Done(*task.Task) error {

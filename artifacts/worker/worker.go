@@ -10,11 +10,11 @@ import (
 type Worker struct {
 	ID          uint
 	Alive       bool
-	BaseTasks   chan *task.Task
-	LowTasks    chan *task.Task
-	MediumTasks chan *task.Task
-	HighTasks   chan *task.Task
-	UrgentTasks chan *task.Task
+	BaseTasks   chan *task.TaskFuture
+	LowTasks    chan *task.TaskFuture
+	MediumTasks chan *task.TaskFuture
+	HighTasks   chan *task.TaskFuture
+	UrgentTasks chan *task.TaskFuture
 	Exit        chan bool
 }
 
@@ -25,34 +25,39 @@ func (w *Worker) Start() {
 			select {
 			case <-w.Exit:
 				return
-			case tk := <-w.UrgentTasks:
+			case tkf := <-w.UrgentTasks:
+				tk := tkf.Receive()
 				logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 				logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-				fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
+				tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
 			default:
 				select {
-				case tk := <-w.HighTasks:
+				case tkf := <-w.HighTasks:
+					tk := tkf.Receive()
 					logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 					logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-					fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
+					tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
 				default:
 					select {
-					case tk := <-w.MediumTasks:
+					case tkf := <-w.MediumTasks:
+						tk := tkf.Receive()
 						logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 						logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-						fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
+						tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
 					default:
 						select {
-						case tk := <-w.LowTasks:
+						case tkf := <-w.LowTasks:
+							tk := tkf.Receive()
 							logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 							logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-							fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
+							tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
 						default:
 							select {
-							case tk := <-w.BaseTasks:
+							case tkf := <-w.BaseTasks:
+								tk := tkf.Receive()
 								logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
 								logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-								fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context)
+								tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
 							default:
 								continue
 							}

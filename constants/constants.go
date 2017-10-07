@@ -122,6 +122,7 @@ var (
 	ErrReduceTaskFailing               = errors.New("GoCollaborate: reduce operation failing error")
 	ErrExecutorStackLengthInconsistent = errors.New("GoCollaborate: executor stack length inconsistent error")
 	ErrMessageChannelDirty             = errors.New("GoCollaborate: message channel has unconsumed message error")
+	ErrTaskChannelDirty                = errors.New("GoCollaborate: task channel has unconsumed task error")
 )
 
 type Header struct {
