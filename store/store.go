@@ -58,8 +58,8 @@ func GetInstance() *FS {
 			make(map[string]*JobFunc),
 			make(map[string]*JobFunc),
 			make(map[string]*rate.Limiter)}
+		singleton.sweep()
 	})
-	singleton.sweep()
 	return singleton
 }
 

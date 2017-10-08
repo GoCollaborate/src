@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"github.com/GoCollaborate/artifacts/stats"
 	"github.com/GoCollaborate/constants"
 	"github.com/gorilla/mux"
 	"golang.org/x/time/rate"
@@ -36,6 +37,27 @@ func AdaptLimiter(lim *rate.Limiter, f func(w http.ResponseWriter, r *http.Reque
 			io.WriteString(w, "Job request exceeds the maximum handling limit, please try later.\n")
 			return
 		}
+		f(w, r)
+		return
+	}
+}
+
+func AdaptStatsHits(f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sm := stats.GetStatsInstance()
+		sm.Record("hits", 1)
+		f(w, r)
+		return
+	}
+}
+
+func AdaptStatsRouteHits(route string, f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
+	sm := stats.GetStatsInstance()
+	sm.Observe(route)
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		sm := stats.GetStatsInstance()
+		sm.Record(route, 1)
 		f(w, r)
 		return
 	}

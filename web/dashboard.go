@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"github.com/GoCollaborate/artifacts/restful"
+	"github.com/GoCollaborate/artifacts/stats"
 	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
@@ -74,4 +75,17 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
 	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
 	io.WriteString(w, str)
+}
+
+func Stats(w http.ResponseWriter, r *http.Request) {
+	mal, err := json.Marshal(stats.GetStatsInstance().Stats())
+
+	if err != nil {
+		panic(err)
+	}
+
+	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	io.WriteString(w, string(mal))
 }

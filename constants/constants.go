@@ -56,6 +56,8 @@ var (
 	DefaultMaxMappingTime           = 600 * time.Second
 	DefaultSynInterval              = 3 * time.Minute
 	DefaultJobRequestRefillInterval = 1 * time.Millisecond
+	DefaultStatFlushInterval        = 20 * time.Millisecond
+	DefaultStatAbstractInterval     = 3 * time.Second
 )
 
 // executor types
@@ -94,6 +96,10 @@ const (
 	ConstraintTypeOneOf         = "oneOf"
 )
 
+const (
+	StatsPolicySumOfInt = "StatsPolicySumOfInt"
+)
+
 // errors
 var (
 	ErrUnknownCmdArg                   = errors.New("GoCollaborate: unknown commandline argument, please enter -h to check out")
@@ -123,6 +129,7 @@ var (
 	ErrExecutorStackLengthInconsistent = errors.New("GoCollaborate: executor stack length inconsistent error")
 	ErrMessageChannelDirty             = errors.New("GoCollaborate: message channel has unconsumed message error")
 	ErrTaskChannelDirty                = errors.New("GoCollaborate: task channel has unconsumed task error")
+	ErrStatTypeNotFound                = errors.New("GoCollaborate: stat type not found error")
 )
 
 type Header struct {

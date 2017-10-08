@@ -7,6 +7,7 @@ import (
 	"github.com/GoCollaborate/artifacts/iremote"
 	"github.com/GoCollaborate/artifacts/iworkable"
 	"github.com/GoCollaborate/artifacts/message"
+	"github.com/GoCollaborate/artifacts/stats"
 	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/cmd"
 	"github.com/GoCollaborate/constants"
@@ -178,6 +179,7 @@ func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 	router.HandleFunc("/dashboard/profile", web.Profile).Methods("GET").Name("Profile")
 	router.HandleFunc("/dashboard/routes", web.Routes).Methods("GET").Name("Routes")
 	router.HandleFunc("/dashboard/logs", web.Logs).Methods("GET").Name("Logs")
+	router.HandleFunc("/dashboard/stats", web.Stats).Methods("GET").Name("Stats")
 
 	// register tasks existing in publisher
 	// reflect api endpoint based on exposed task (function) name
@@ -341,6 +343,10 @@ func (clbt *Collaborator) HandleLocal(router *mux.Router, jobFunc *store.JobFunc
 		f = utils.AdaptLimiter(lim, f)
 	}
 
+	f = utils.AdaptStatsHits(f)
+
+	f = utils.AdaptStatsRouteHits(jobFunc.Signature, f)
+
 	router.HandleFunc(jobFunc.Signature, f).Methods(jobFunc.Methods...).Name("Local Tasks")
 }
 
@@ -376,11 +382,20 @@ func (clbt *Collaborator) HandleShared(router *mux.Router, jobFunc *store.JobFun
 		f = utils.AdaptLimiter(lim, f)
 	}
 
+	f = utils.AdaptStatsHits(f)
+
+	f = utils.AdaptStatsRouteHits(jobFunc.Signature, f)
+
 	router.HandleFunc(jobFunc.Signature, f).Methods(jobFunc.Methods...).Name("Shared Tasks")
 }
 
 // The function will process the tasks locally.
 func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, stacks []string) error {
+
+	// stats
+	sm := stats.GetStatsInstance()
+	sm.Record("tasks", len(*pmaps))
+
 	var (
 		err  error
 		fs   = store.GetInstance()
@@ -425,6 +440,11 @@ func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, stacks []st
 
 // The function will process the tasks globally within the cluster network.
 func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []string) error {
+
+	// stats
+	sm := stats.GetStatsInstance()
+	sm.Record("tasks", len(*pmaps))
+
 	var (
 		err  error
 		fs   = store.GetInstance()

@@ -19,6 +19,9 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.5
+- Add analytics support
+- Optimize UI
 #### 0.2.4
 - Optimize performance
 - Optimize UI
