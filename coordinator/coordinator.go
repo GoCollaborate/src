@@ -8,28 +8,18 @@ import (
 	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/logger"
 	"github.com/GoCollaborate/utils"
-	"github.com/GoCollaborate/web"
-	"github.com/GoCollaborate/wrappers/cardHelper"
-	"github.com/GoCollaborate/wrappers/parameterHelper"
 	"github.com/GoCollaborate/wrappers/restfulHelper"
 	"github.com/GoCollaborate/wrappers/serviceHelper"
 	"github.com/gorilla/mux"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
-	"runtime"
-	"sync"
-	"time"
 )
 
 const (
-	RPCTokenLength   = 10
-	RPCServiceLength = 15
+	TokenLength   = 10
+	ServiceLength = 15
 )
-
-var center *Coordinator
-var once sync.Once
 
 type Coordinator struct {
 	Created  int64                       `json:"created"`  // time in epoch milliseconds indicating when the registry center was created
@@ -39,21 +29,11 @@ type Coordinator struct {
 	GoVer    string                      `json:"gover"`
 }
 
-// singleton instance of registry center
-func GetCoordinatorInstance(port int) *Coordinator {
-	once.Do(func() {
-		center = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*service.Service{}, port, runtime.Version()}
-	})
-	return center
-}
+func (cdnt *Coordinator) Handle(router *mux.Router) *mux.Router {
 
-func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
-
-	center = rc
-
-	router.HandleFunc("/", web.Index).Methods("GET")
-	router.HandleFunc("/index", web.Index).Methods("GET")
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.LibUnixDir+"static/"))))
+	// router.HandleFunc("/", web.Index).Methods("GET")
+	// router.HandleFunc("/index", web.Index).Methods("GET")
+	// router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.LibUnixDir+"static/"))))
 	router.HandleFunc("/services", HandlerFuncGetServices).Methods("GET")
 
 	// client launch request to call a service
@@ -76,378 +56,265 @@ func (rc *Coordinator) Handle(router *mux.Router) *mux.Router {
 
 	// create services
 	router.HandleFunc("/services", HandlerFuncPostServices).Methods("POST")
-	rc.Dump()
+	cdnt.Dump()
 	return router
 }
 
+func (cdnt *Coordinator) GetService(w http.ResponseWriter, r *http.Request, srvID string) error {
+	if _, ok := cdnt.Services[srvID]; ok {
+		services := map[string]*service.Service{}
+		services[srvID] = cdnt.Services[srvID]
+		payload := service.ServicePayload{
+			Data:     serviceHelper.MarshalServiceToStandardResource(services),
+			Included: []service.ServiceResource{},
+			Links: restful.Links{
+				Self: r.URL.String(),
+			},
+		}
+		return serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
+	}
+	return restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
+}
+
+func (cdnt *Coordinator) GetServices(w http.ResponseWriter, r *http.Request) error {
+	// look up service list, returning service providers
+	payload := service.ServicePayload{
+		Data:     serviceHelper.MarshalServiceToStandardResource(cdnt.Services),
+		Included: []service.ServiceResource{},
+		Links: restful.Links{
+			Self: r.URL.String(),
+		},
+	}
+	return serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
+}
+
 // POST
-func (rc *Coordinator) CreateService(w http.ResponseWriter, js string) error {
+func (cdnt *Coordinator) CreateService(w http.ResponseWriter, js string) error {
 	// parse request json and create service here
-	payload := restfulHelper.Decode(js)
-	var resData []restful.Resource
+	payload := serviceHelper.DecodeService(js)
+	var resData []service.ServiceResource
 	for _, dat := range payload.Data {
-		if dat.Type == "service" {
-			id := utils.RandStringBytesMaskImprSrc(RPCServiceLength)
-			svrs := service.Service{id, dat.Attributes["description"].(string),
-				parameterHelper.UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
-				cardHelper.UnmarshalCards(dat.Attributes["registers"].([]interface{})),
-				parameterHelper.UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
-				parameterHelper.UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
-				serviceHelper.UnmarshalMode(dat.Attributes["mode"]),
-				serviceHelper.UnmarshalMode(dat.Attributes["load_balance_mode"]),
-				dat.Attributes["version"].(string),
-				dat.Attributes["platform_version"].(string),
-				"",
-				time.Now().Unix()}
-			rc.Services[id] = &svrs
-			dat.ID = id
+		if dat.Resource.Type == "service" {
+			id := utils.RandStringBytesMaskImprSrc(ServiceLength)
+			svrs := dat.Attributes
+			svrs.ServiceID = id
+			svrs.LastAssignedTime = int64(0)
+			cdnt.Services[id] = &svrs
+			dat.Resource.ID = id
 			resData = append(resData, dat)
 		}
 	}
 	payload.Data = resData
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header201Created)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendServiceWith(w, payload, constants.Header201Created)
 	return nil
 }
 
 // POST
-func (rc *Coordinator) RegisterService(w http.ResponseWriter, js string, srvID string) error {
-	payload := restfulHelper.Decode(js)
+func (cdnt *Coordinator) RegisterService(w http.ResponseWriter, js string, srvID string) error {
+	payload := serviceHelper.DecodeRegistry(js)
 	for _, dat := range payload.Data {
-		if dat.Type == "registry" {
-			Cards := cardHelper.UnmarshalCards(dat.Attributes["cards"].([]interface{}))
-			if _, ok := rc.Services[srvID]; !ok {
-				errPayload := restful.Error404NotFound()
-				mal, er := json.Marshal(errPayload)
-				if er != nil {
-					return er
-				}
-				utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-				io.WriteString(w, string(mal))
+		if dat.Resource.Type == "registry" {
+			Cards := dat.Attributes.Cards
+			if _, ok := cdnt.Services[srvID]; !ok {
+				restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 				return constants.ErrNoService
 			}
 			for _, Card := range Cards {
-				err := rc.Services[srvID].Register(&Card)
+				err := cdnt.Services[srvID].Register(&Card)
 				if err != nil {
-					errPayload := restful.Error409Conflict()
-					mal, er := json.Marshal(errPayload)
-					if er != nil {
-						return er
-					}
-					utils.AdaptHTTPWithHeader(w, constants.Header409Conflict)
-					rtjs := string(mal)
-					io.WriteString(w, rtjs)
+					restfulHelper.SendErrorWith(w, restful.Error409Conflict(), constants.Header409Conflict)
 					return err
 				}
 			}
 		}
 	}
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendRegistryWith(w, payload, constants.Header200OK)
 	return nil
 }
 
 // POST
-func (rc *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID string) error {
-	var tks []restful.Resource
-	payload := restfulHelper.Decode(js)
+func (cdnt *Coordinator) SubscribeService(w http.ResponseWriter, js string, srvID string) error {
+	var res []service.SubscriptionResource
+	payload := serviceHelper.DecodeSubscription(js)
 	for _, dat := range payload.Data {
-		if dat.Type == "subscription" {
-			if _, ok := rc.Services[srvID]; ok {
-				tk := utils.RandStringBytesMaskImprSrc(RPCTokenLength)
-				err := rc.Services[srvID].Subscribe(tk)
+		if dat.Resource.Type == "subscription" {
+			if _, ok := cdnt.Services[srvID]; ok {
+				tk := utils.RandStringBytesMaskImprSrc(TokenLength)
+				err := cdnt.Services[srvID].Subscribe(tk)
 				if err != nil {
-					errPayload := restful.Error409Conflict()
-					mal, er := json.Marshal(errPayload)
-					if er != nil {
-						return er
-					}
-					utils.AdaptHTTPWithHeader(w, constants.Header409Conflict)
-					rtjs := string(mal)
-					io.WriteString(w, rtjs)
+					restfulHelper.SendErrorWith(w, restful.Error409Conflict(), constants.Header409Conflict)
 					return err
 				}
-				if dat.Attributes == nil {
-					dat.Attributes = map[string]interface{}{}
-				}
-				dat.Attributes["token"] = tk
-				tks = append(tks, dat)
+				dat.Attributes.Token = tk
+				res = append(res, dat)
 			}
 		}
 	}
-	payload.Data = tks
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	payload.Data = res
+	serviceHelper.SendSubscriptionWith(w, payload, constants.Header200OK)
 	return nil
 }
 
 // DELETE
-func (rc *Coordinator) DeleteService(w http.ResponseWriter, r *http.Request, srvID string) error {
-	if _, ok := rc.Services[srvID]; ok {
+func (cdnt *Coordinator) DeleteService(w http.ResponseWriter, r *http.Request, srvID string) error {
+	if _, ok := cdnt.Services[srvID]; ok {
 		services := map[string]*service.Service{}
-		services[srvID] = center.Services[srvID]
-		payload := restful.ExposurePayload{
-			restfulHelper.MarshalServiceToStandardResource(services),
-			[]restful.Resource{},
-			restful.Links{
+		services[srvID] = cdnt.Services[srvID]
+		payload := service.ServicePayload{
+			Data:     serviceHelper.MarshalServiceToStandardResource(services),
+			Included: []service.ServiceResource{},
+			Links: restful.Links{
 				Self: r.URL.String(),
 			},
 		}
-		delete(rc.Services, srvID)
-		mal, err := json.Marshal(payload)
-		if err != nil {
-			return err
-		}
-		utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-		io.WriteString(w, string(mal))
+		delete(cdnt.Services, srvID)
+		serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
 		return nil
 	}
-	utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-	io.WriteString(w, "")
+	restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 	return constants.ErrNoService
 
 }
 
 // DELETE
-func (rc *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request, srvID string, Card *card.Card) error {
-	if _, ok := rc.Services[srvID]; !ok {
-		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return er
-		}
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		io.WriteString(w, string(mal))
+func (cdnt *Coordinator) DeRegisterService(w http.ResponseWriter, r *http.Request, srvID string, Card *card.Card) error {
+	if _, ok := cdnt.Services[srvID]; !ok {
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return constants.ErrNoService
 	}
 
-	err := rc.Services[srvID].DeRegister(Card)
+	err := cdnt.Services[srvID].DeRegister(Card)
 	if err != nil {
-		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return er
-		}
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		io.WriteString(w, string(mal))
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return err
 	}
 
 	services := map[string]*service.Service{}
-	services[srvID] = rc.Services[srvID]
+	services[srvID] = cdnt.Services[srvID]
 
-	rtpayload := restful.ExposurePayload{
-		restfulHelper.MarshalServiceToStandardResource(services),
-		[]restful.Resource{},
-		restful.Links{
+	payload := service.ServicePayload{
+		Data:     serviceHelper.MarshalServiceToStandardResource(services),
+		Included: []service.ServiceResource{},
+		Links: restful.Links{
 			Self: r.URL.String(),
 		},
 	}
 
-	mal, errr := json.Marshal(rtpayload)
-	if errr != nil {
-		return errr
-	}
-
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
 	return nil
 }
 
 // DELETE
-func (rc *Coordinator) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request, srvID string) error {
-	if _, ok := rc.Services[srvID]; !ok {
-		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return er
-		}
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		io.WriteString(w, string(mal))
+func (cdnt *Coordinator) DeRegisterServiceAll(w http.ResponseWriter, r *http.Request, srvID string) error {
+	if _, ok := cdnt.Services[srvID]; !ok {
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return constants.ErrNoService
 	}
 	services := map[string]*service.Service{}
-	services[srvID] = rc.Services[srvID]
-	payload := restful.ExposurePayload{
-		restfulHelper.MarshalServiceToStandardResource(services),
-		[]restful.Resource{},
-		restful.Links{
+	services[srvID] = cdnt.Services[srvID]
+	payload := service.ServicePayload{
+		Data:     serviceHelper.MarshalServiceToStandardResource(services),
+		Included: []service.ServiceResource{},
+		Links: restful.Links{
 			Self: r.URL.String(),
 		},
 	}
-	rc.Services[srvID].DeRegisterAll()
+	cdnt.Services[srvID].DeRegisterAll()
 
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
 	return nil
 }
 
 // DELETE
-func (rc *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request, srvID string, token string) error {
-	if _, ok := rc.Services[srvID]; !ok {
-		errPayload := restful.Error404NotFound()
-		mal, _ := json.Marshal(errPayload)
-
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		io.WriteString(w, string(mal))
+func (cdnt *Coordinator) UnSubscribeService(w http.ResponseWriter, r *http.Request, srvID string, token string) error {
+	if _, ok := cdnt.Services[srvID]; !ok {
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return constants.ErrNoService
 	}
 
-	err := rc.Services[srvID].UnSubscribe(token)
+	err := cdnt.Services[srvID].UnSubscribe(token)
 	if err != nil {
-		errPayload := restful.Error404NotFound()
-		mal, _ := json.Marshal(errPayload)
-
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return err
 	}
 
 	services := map[string]*service.Service{}
-	services[srvID] = rc.Services[srvID]
+	services[srvID] = cdnt.Services[srvID]
 
-	rtpayload := restful.ExposurePayload{
-		restfulHelper.MarshalServiceToStandardResource(services),
-		[]restful.Resource{},
-		restful.Links{
+	payload := service.ServicePayload{
+		Data:     serviceHelper.MarshalServiceToStandardResource(services),
+		Included: []service.ServiceResource{},
+		Links: restful.Links{
 			Self: r.URL.String(),
 		},
 	}
 
-	mal, errr := json.Marshal(rtpayload)
-	if errr != nil {
-		return errr
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
 	return nil
 }
 
 // DELETE
-func (rc *Coordinator) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Request, srvID string) error {
-	if _, ok := rc.Services[srvID]; !ok {
-		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return er
-		}
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		io.WriteString(w, string(mal))
+func (cdnt *Coordinator) UnSubscribeServiceAll(w http.ResponseWriter, r *http.Request, srvID string) error {
+	if _, ok := cdnt.Services[srvID]; !ok {
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return constants.ErrNoService
 	}
 	services := map[string]*service.Service{}
-	services[srvID] = rc.Services[srvID]
-	payload := restful.ExposurePayload{
-		restfulHelper.MarshalServiceToStandardResource(services),
-		[]restful.Resource{},
-		restful.Links{
+	services[srvID] = cdnt.Services[srvID]
+	payload := service.ServicePayload{
+		Data:     serviceHelper.MarshalServiceToStandardResource(services),
+		Included: []service.ServiceResource{},
+		Links: restful.Links{
 			Self: r.URL.String(),
 		},
 	}
-	rc.Services[srvID].UnSubscribeAll()
-	mal, _ := json.Marshal(payload)
-
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	cdnt.Services[srvID].UnSubscribeAll()
+	serviceHelper.SendServiceWith(w, &payload, constants.Header200OK)
 	return nil
 }
 
 // PUT
-func (rc *Coordinator) AlterService(w http.ResponseWriter, js string) error {
-	payload := restfulHelper.Decode(js)
+func (cdnt *Coordinator) AlterService(w http.ResponseWriter, js string) error {
+	payload := serviceHelper.DecodeService(js)
 	for _, dat := range payload.Data {
-		if dat.Type == "service" {
-			srvID := dat.ID
-			if _, ok := rc.Services[srvID]; !ok {
-				errPayload := restful.Error404NotFound()
-				mal, er := json.Marshal(errPayload)
-				if er != nil {
-					return er
-				}
-				utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-				io.WriteString(w, string(mal))
+		if dat.Resource.Type == "service" {
+			srvID := dat.Resource.ID
+			if _, ok := cdnt.Services[srvID]; !ok {
+				restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 				return constants.ErrNoService
 			}
-
-			svrs := service.Service{dat.ID, dat.Attributes["description"].(string),
-				parameterHelper.UnmarshalParameters(dat.Attributes["parameters"].([]interface{})),
-				cardHelper.UnmarshalCards(dat.Attributes["registers"].([]interface{})),
-				parameterHelper.UnmarshalStringArray(dat.Attributes["subscribers"].([]interface{})),
-				parameterHelper.UnmarshalStringArray(dat.Attributes["dependencies"].([]interface{})),
-				serviceHelper.UnmarshalMode(dat.Attributes["mode"]),
-				serviceHelper.UnmarshalMode(dat.Attributes["load_balance_mode"]),
-				dat.Attributes["version"].(string),
-				dat.Attributes["platform_version"].(string),
-				"",
-				time.Now().Unix()}
-			rc.Services[srvID] = &svrs
-			dat.ID = srvID
+			cdnt.Services[srvID] = &dat.Attributes
 		}
 	}
-	mal, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-	utils.AdaptHTTPWithHeader(w, constants.Header202Accepted)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendServiceWith(w, payload, constants.Header202Accepted)
 	return nil
 }
 
-func (rc *Coordinator) QueryService(w http.ResponseWriter, r *http.Request, srvID string, token string) error {
-	if _, ok := rc.Services[srvID]; !ok {
-		errPayload := restful.Error404NotFound()
-		mal, er := json.Marshal(errPayload)
-		if er != nil {
-			return er
-		}
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		io.WriteString(w, string(mal))
+func (cdnt *Coordinator) QueryService(w http.ResponseWriter, r *http.Request, srvID string, token string) error {
+	if _, ok := cdnt.Services[srvID]; !ok {
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return constants.ErrNoService
 	}
 
-	agt, err := rc.Services[srvID].Query(token)
+	agt, err := cdnt.Services[srvID].Query(token)
 	if err != nil {
-		errPayload := restful.Error404NotFound()
-		mal, _ := json.Marshal(errPayload)
-
-		utils.AdaptHTTPWithHeader(w, constants.Header404NotFound)
-		rtjs := string(mal)
-		io.WriteString(w, rtjs)
+		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), constants.Header404NotFound)
 		return err
 	}
 
-	rtpayload := restful.ExposurePayload{
-		restfulHelper.MarshalCardToStandardResource(srvID, agt),
-		[]restful.Resource{},
-		restful.Links{
+	payload := service.QueryPayload{
+		Data:     serviceHelper.MarshalCardToStandardResource(srvID, agt),
+		Included: []service.QueryResource{},
+		Links: restful.Links{
 			Self: r.URL.String(),
 		},
 	}
 
-	mal, _ := json.Marshal(rtpayload)
-
-	utils.AdaptHTTPWithHeader(w, constants.Header200OK)
-	io.WriteString(w, string(mal))
+	serviceHelper.SendQueryWith(w, &payload, constants.Header200OK)
 	return nil
 }
 
+// the coordinator active heartbeat is only available when all of the collaborators are running in debug mode
 func (rc *Coordinator) HeartBeatAll() []card.Card {
 	// send heartbeat signals to all service providers
 	// return which of them have already expired

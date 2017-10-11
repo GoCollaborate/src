@@ -8,18 +8,20 @@ import (
 )
 
 type Service struct {
-	ServiceID        string                `json:"serviceid"`
-	Description      string                `json:"description"`
-	Parameters       []parameter.Parameter `json:"parameters"`
-	RegList          []card.Card           `json:"registers"`
-	SbscrbList       []string              `json:"subscribers"`  // subscriber tokens
-	Dependencies     []string              `json:"dependencies"` // dependent ServiceIDs
-	Mode             Mode                  `json:"mode,omitempty"`
-	LoadBalanceMode  Mode                  `json:"load_balance_mode,omitemtpy"`
-	Version          string                `json:"version"`
-	PlatformVersion  string                `json:"platform_version"`
-	LastAssignedTo   string                `json:"last_assigned_to"`
-	LastAssignedTime int64                 `json:"last_assigned_time"`
+	ServiceID   string                `json:"serviceid"`
+	Description string                `json:"description"`
+	Parameters  []parameter.Parameter `json:"parameters"`
+	RegList     []card.Card           `json:"registers"`
+	// a map of last heartbeat timestamps, eact key corresponds to one particular card full endpoint
+	Heartbeats       map[string]int64 `json:"heartbeats,omitempty"`
+	SbscrbList       []string         `json:"subscribers"`  // subscriber tokens
+	Dependencies     []string         `json:"dependencies"` // dependent ServiceIDs
+	Mode             Mode             `json:"mode,omitempty"`
+	LoadBalanceMode  Mode             `json:"load_balance_mode,omitemtpy"`
+	Version          string           `json:"version"`
+	PlatformVersion  string           `json:"platform_version"`
+	LastAssignedTo   card.Card        `json:"last_assigned_to,omitempty"`
+	LastAssignedTime int64            `json:"last_assigned_time,omitempty"`
 }
 
 func (s *Service) SetMode(m *Mode) Mode {

@@ -1,10 +1,9 @@
 package restful
 
 type Resource struct {
-	Type          string                 `json:"type"`
-	ID            string                 `json:"id,omitempty"`
-	Attributes    map[string]interface{} `json:"attributes"`
-	Relationships []Relationship         `json:"relationships"`
+	ID            string         `json:"id,omitempty"`
+	Type          string         `json:"type"`
+	Relationships []Relationship `json:"relationships,omitempty"`
 }
 
 type Relationship struct {

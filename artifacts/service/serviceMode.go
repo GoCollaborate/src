@@ -2,13 +2,13 @@ package service
 
 // remote settings
 const (
-	RPCServerModeNormal                 Mode = iota
-	RPCServerModeOnlyRegister                // collaborator only registers service, service is not accessible until it has been changed to RPCServerModeNormal
-	RPCServerModeStatic                      // coordinating Card will not automatically manage this server
-	RPCServerModeRandomLoadBalance           // assign tasks as per weighted probability
-	RPCServerModeLeastActiveLoadBalance      // assign tasks to active responders
-	RPCClientModeOnlySubscribe               // client only subscribes to collaborator service at RegCenter, yet still collaborates with direct point to point connection
-	RPCClientModePointToPoint                // this will provide point to point connection between client and collaborator
+	ClbtModeNormal        Mode = iota
+	ClbtModeOnlyRegister       // collaborator only registers service, service is not accessible until it has been changed to ClbtModeNormal
+	ClbtModeOnlySubscribe      // subscriber only subscribes to collaborator service at coordinator, no service redirection will be provided
+	LBModeRandom               // assign tasks as per weighted probability
+	LBModeLeastActive          // assign tasks to active responders
+	LBModeRoundRobin           // assign tasks sequentially based on the order of collaborator
+	LBModeIPHash               // assign tasks based on the hash value of subscriber IP
 )
 
 type Mode int
