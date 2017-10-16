@@ -5,7 +5,7 @@ import (
 )
 
 type ServiceResource struct {
-	Resource   *restful.Resource
+	*restful.Resource
 	Attributes Service `json:"attributes"`
 }
 

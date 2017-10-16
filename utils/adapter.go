@@ -23,6 +23,14 @@ func AdaptRouterToDebugMode(router *mux.Router) *mux.Router {
 	return router
 }
 
+// make sure AdaptHTTPWithStatus is lastly added to the response writer, otherwise
+// it would not work (ref: https://golang.org/pkg/net/http/#ResponseWriter)
+func AdaptHTTPWithStatus(w http.ResponseWriter,
+	header int) http.ResponseWriter {
+	w.WriteHeader(header)
+	return w
+}
+
 func AdaptHTTPWithHeader(w http.ResponseWriter,
 	header constants.Header) http.ResponseWriter {
 	w.Header().Add(header.Key, header.Value)
@@ -33,7 +41,7 @@ func AdaptHTTPWithHeader(w http.ResponseWriter,
 func AdaptLimiter(lim *rate.Limiter, f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !lim.Allow() {
-			AdaptHTTPWithHeader(w, constants.Header422ExceedLimit)
+			AdaptHTTPWithStatus(w, http.StatusUnprocessableEntity)
 			io.WriteString(w, "Job request exceeds the maximum handling limit, please try later.\n")
 			return
 		}

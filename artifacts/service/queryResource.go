@@ -5,7 +5,7 @@ import (
 )
 
 type QueryResource struct {
-	Resource   *restful.Resource
+	*restful.Resource
 	Attributes Query `json:"attributes"`
 }
 

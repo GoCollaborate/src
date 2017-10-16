@@ -5,10 +5,11 @@ import (
 	"github.com/GoCollaborate/artifacts/parameter"
 	"github.com/GoCollaborate/constants"
 	"math/rand"
+	"time"
 )
 
 type Service struct {
-	ServiceID   string                `json:"serviceid"`
+	ServiceID   string                `json:"serviceid,omitempty"`
 	Description string                `json:"description"`
 	Parameters  []parameter.Parameter `json:"parameters"`
 	RegList     []card.Card           `json:"registers"`
@@ -22,6 +23,19 @@ type Service struct {
 	PlatformVersion  string           `json:"platform_version"`
 	LastAssignedTo   card.Card        `json:"last_assigned_to,omitempty"`
 	LastAssignedTime int64            `json:"last_assigned_time,omitempty"`
+}
+
+func NewService() *Service {
+	return &Service{
+		Description:     "",
+		Parameters:      []parameter.Parameter{},
+		RegList:         []card.Card{},
+		Heartbeats:      map[string]int64{},
+		SbscrbList:      []string{},
+		Dependencies:    []string{},
+		Version:         "1.0",
+		PlatformVersion: "golang1.8.1",
+	}
 }
 
 func (s *Service) SetMode(m *Mode) Mode {
@@ -118,4 +132,14 @@ func (s *Service) UnSubscribeAll() error {
 	y := []string{}
 	s.SbscrbList = y
 	return nil
+}
+
+func (s *Service) Heartbeat(agt *card.Card) {
+	y := s.RegList
+	for _, x := range y {
+		if agt.IsEqualTo(&x) {
+			s.Heartbeats[x.GetFullEndPoint()] = time.Now().Unix()
+			return
+		}
+	}
 }

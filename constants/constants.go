@@ -43,6 +43,7 @@ const (
 	DefaultHashLength = 12
 )
 
+// time consts
 var (
 	DefaultReadTimeout              = 15 * time.Second
 	DefaultPeriodShort              = 500 * time.Millisecond
@@ -54,7 +55,8 @@ var (
 	DefaultTaskExpireTime           = 30 * time.Second
 	DefaultGCInterval               = 30 * time.Second
 	DefaultMaxMappingTime           = 600 * time.Second
-	DefaultSynInterval              = 3 * time.Minute
+	DefaultSyncInterval             = 3 * time.Minute
+	DefaultHeartbeatInterval        = 1 * time.Minute
 	DefaultJobRequestRefillInterval = 1 * time.Millisecond
 	DefaultStatFlushInterval        = 20 * time.Millisecond
 	DefaultStatAbstractInterval     = 3 * time.Second
@@ -130,6 +132,7 @@ var (
 	ErrMessageChannelDirty             = errors.New("GoCollaborate: message channel has unconsumed message error")
 	ErrTaskChannelDirty                = errors.New("GoCollaborate: task channel has unconsumed task error")
 	ErrStatTypeNotFound                = errors.New("GoCollaborate: stat type not found error")
+	ErrCoordinatorNotFound             = errors.New("GoCollaborate: coordinator not found error")
 )
 
 type Header struct {
@@ -137,20 +140,24 @@ type Header struct {
 	Value string `json:"value"`
 }
 
+// HTTP Status
+// var (
+// Header200OK                   = Header{"200", "OK"}
+// Header201Created              = Header{"201", "Created"}
+// Header202Accepted             = Header{"202", "Accepted"}
+// Header204NoContent            = Header{"204", "NoContent"}
+// Header403Forbidden            = Header{"403", "Forbidden"}
+// Header404NotFound             = Header{"404", "NotFound"}
+// Header409Conflict             = Header{"409", "Conflict"}
+// Header415UnsupportedMediaType = Header{"415", "UnsupportedMediaType"}
+// Header422ExceedLimit          = Header{"422", "ExceedLimit"}
+// )
+
 // HTTP headers
 var (
-	Header200OK                   = Header{"200", "OK"}
-	Header201Created              = Header{"201", "Created"}
-	Header202Accepted             = Header{"202", "Accepted"}
-	Header204NoContent            = Header{"204", "NoContent"}
-	Header403Forbidden            = Header{"403", "Forbidden"}
-	Header404NotFound             = Header{"404", "NotFound"}
-	Header409Conflict             = Header{"409", "Conflict"}
-	Header415UnsupportedMediaType = Header{"415", "UnsupportedMediaType"}
-	Header422ExceedLimit          = Header{"422", "ExceedLimit"}
-	HeaderContentTypeJSON         = Header{"Content-Type", "application/json"}
-	HeaderContentTypeText         = Header{"Content-Type", "text/html"}
-	HeaderCORSEnableAllOrigin     = Header{"Access-Control-Allow-Origin", "*"}
+	HeaderContentTypeJSON     = Header{"Content-Type", "application/json"}
+	HeaderContentTypeText     = Header{"Content-Type", "text/html"}
+	HeaderCORSEnableAllOrigin = Header{"Access-Control-Allow-Origin", "*"}
 )
 
 // Gossip Protocol headers

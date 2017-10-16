@@ -7,6 +7,7 @@ import (
 	"github.com/GoCollaborate/artifacts/iremote"
 	"github.com/GoCollaborate/artifacts/iworkable"
 	"github.com/GoCollaborate/artifacts/message"
+	"github.com/GoCollaborate/artifacts/service"
 	"github.com/GoCollaborate/artifacts/stats"
 	"github.com/GoCollaborate/artifacts/task"
 	"github.com/GoCollaborate/cmd"
@@ -17,6 +18,7 @@ import (
 	"github.com/GoCollaborate/web"
 	"github.com/GoCollaborate/wrappers/cardHelper"
 	"github.com/GoCollaborate/wrappers/messageHelper"
+	"github.com/GoCollaborate/wrappers/serviceHelper"
 	"github.com/gorilla/mux"
 	"net"
 	"net/http"
@@ -93,12 +95,22 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 	go func() {
 		for {
 			clbt.Catchup()
-			<-time.After(constants.DefaultSynInterval)
+			<-time.After(constants.DefaultSyncInterval)
 			// clean collaborators that are no longer alive
 			clbt.Clean()
 			// dump data to local store
 			clbt.CardCase.writeStream()
 		}
+	}()
+
+	go func() {
+		// service registry
+		clbt.RegisterService()
+		// todo: service mornitoring
+		// for {
+		// 	<-time.After(constants.DefaultHeartbeatInterval)
+		// 	clbt.HeartBeat()
+		// }
 	}()
 }
 
@@ -168,6 +180,69 @@ func (clbt *Collaborator) Clean() {
 	cards = clbt.CardCase.Digest().Cards()
 
 	cardHelper.RangePrint(cards)
+}
+
+func (clbt *Collaborator) RegisterService() {
+	var (
+		cdntIP = clbt.CardCase.Reserved.Coordinator.GetFullIP()
+		clbtIP = clbt.CardCase.Local.GetFullIP()
+	)
+
+	resp, err := http.Get("http://" + cdntIP + "/cluster/" + clbt.CardCase.CaseID + "/services")
+	if err != nil {
+		return
+	}
+
+	// if cluster already get created, return to call general service registry api on coordinator
+	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+		return
+	}
+
+	var (
+		router   = store.GetRouter()
+		services = map[string]*service.Service{}
+	)
+
+	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		t, err := route.GetPathTemplate()
+		if err != nil {
+			return err
+		}
+		svr := service.NewService()
+		svr.Description = route.GetName()
+		svr.RegList = append(svr.RegList, card.Card{
+			IP:    clbt.CardCase.Local.IP,
+			Port:  clbt.CardCase.Local.Port,
+			API:   t,
+			Alive: true,
+		})
+		services[clbtIP+"/"+t] = svr
+		return nil
+	})
+
+	reader, err := serviceHelper.MarshalServiceResourceToByteStreamReader(services)
+	if err != nil {
+		panic(constants.ErrCoordinatorNotFound)
+		return
+	}
+
+	// walk through services and get them created on the coordinator
+	resp2, err := http.Post("http://"+cdntIP+"/services", "application/json", reader)
+	if err != nil {
+		panic(err)
+	}
+
+	_, err = http.Post("http://"+cdntIP+"/cluster/"+clbt.CardCase.CaseID+"/services", "application/json", resp2.Body)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func (clbt *Collaborator) HeartBeat() {
+	// cdntIP := clbt.CardCase.Reserved.Coordinator.GetFullIP()
+	// // todo
+	// http.Get(cdntIP + "")
 }
 
 // Start handling server routes.

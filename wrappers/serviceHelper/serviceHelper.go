@@ -1,6 +1,7 @@
 package serviceHelper
 
 import (
+	"bytes"
 	"encoding/json"
 	"github.com/GoCollaborate/artifacts/card"
 	"github.com/GoCollaborate/artifacts/restful"
@@ -49,6 +50,18 @@ func MarshalServiceToStandardResource(srvs map[string]*service.Service) []servic
 	return resources
 }
 
+func MarshalServiceResourceToByteStream(srvs map[string]*service.Service) ([]byte, error) {
+	payload := service.ServicePayload{
+		Data: MarshalServiceToStandardResource(srvs),
+	}
+	return json.Marshal(payload)
+}
+
+func MarshalServiceResourceToByteStreamReader(srvs map[string]*service.Service) (io.Reader, error) {
+	b, err := MarshalServiceResourceToByteStream(srvs)
+	return bytes.NewReader(b), err
+}
+
 func MarshalCardToStandardResource(srvID string, card *card.Card) []service.QueryResource {
 	var resources []service.QueryResource
 	resources = append(resources, service.QueryResource{
@@ -62,60 +75,64 @@ func MarshalCardToStandardResource(srvID string, card *card.Card) []service.Quer
 	return resources
 }
 
-func DecodeService(js string) *service.ServicePayload {
+func DecodeService(bytes []byte) *service.ServicePayload {
 	payload := service.ServicePayload{}
-	json.Unmarshal([]byte(js), &payload)
+	json.Unmarshal(bytes, &payload)
 	return &payload
 }
 
-func DecodeRegistry(js string) *service.RegistryPayload {
+func DecodeRegistry(bytes []byte) *service.RegistryPayload {
 	payload := service.RegistryPayload{}
-	json.Unmarshal([]byte(js), &payload)
+	json.Unmarshal(bytes, &payload)
 	return &payload
 }
 
-func DecodeSubscription(js string) *service.SubscriptionPayload {
+func DecodeSubscription(bytes []byte) *service.SubscriptionPayload {
 	payload := service.SubscriptionPayload{}
-	json.Unmarshal([]byte(js), &payload)
+	json.Unmarshal(bytes, &payload)
 	return &payload
 }
 
-func SendServiceWith(w http.ResponseWriter, srvPayload *service.ServicePayload, header constants.Header) error {
+func SendServiceWith(w http.ResponseWriter, srvPayload *service.ServicePayload, status int) error {
 	mal, err := json.Marshal(*srvPayload)
 	if err != nil {
 		return err
 	}
-	utils.AdaptHTTPWithHeader(w, header)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithStatus(w, status)
 	io.WriteString(w, string(mal))
 	return nil
 }
 
-func SendRegistryWith(w http.ResponseWriter, regPayload *service.RegistryPayload, header constants.Header) error {
+func SendRegistryWith(w http.ResponseWriter, regPayload *service.RegistryPayload, status int) error {
 	mal, err := json.Marshal(*regPayload)
 	if err != nil {
 		return err
 	}
-	utils.AdaptHTTPWithHeader(w, header)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithStatus(w, status)
 	io.WriteString(w, string(mal))
 	return nil
 }
 
-func SendSubscriptionWith(w http.ResponseWriter, scpPayload *service.SubscriptionPayload, header constants.Header) error {
+func SendSubscriptionWith(w http.ResponseWriter, scpPayload *service.SubscriptionPayload, status int) error {
 	mal, err := json.Marshal(*scpPayload)
 	if err != nil {
 		return err
 	}
-	utils.AdaptHTTPWithHeader(w, header)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithStatus(w, status)
 	io.WriteString(w, string(mal))
 	return nil
 }
 
-func SendQueryWith(w http.ResponseWriter, queryPayload *service.QueryPayload, header constants.Header) error {
+func SendQueryWith(w http.ResponseWriter, queryPayload *service.QueryPayload, status int) error {
 	mal, err := json.Marshal(*queryPayload)
 	if err != nil {
 		return err
 	}
-	utils.AdaptHTTPWithHeader(w, header)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithStatus(w, status)
 	io.WriteString(w, string(mal))
 	return nil
 }

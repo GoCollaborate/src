@@ -9,12 +9,13 @@ import (
 	"net/http"
 )
 
-func SendErrorWith(w http.ResponseWriter, errPayload restful.ErrorPayload, header constants.Header) error {
+func SendErrorWith(w http.ResponseWriter, errPayload restful.ErrorPayload, status int) error {
 	mal, err := json.Marshal(errPayload)
 	if err != nil {
 		return err
 	}
-	utils.AdaptHTTPWithHeader(w, header)
+	utils.AdaptHTTPWithStatus(w, status)
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
 	io.WriteString(w, string(mal))
 	return nil
 }

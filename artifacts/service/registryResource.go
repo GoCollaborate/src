@@ -5,7 +5,7 @@ import (
 )
 
 type RegistryResource struct {
-	Resource   *restful.Resource
+	*restful.Resource
 	Attributes Registry `json:"attributes"`
 }
 

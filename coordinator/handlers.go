@@ -4,7 +4,6 @@ import (
 	"github.com/GoCollaborate/artifacts/card"
 	"github.com/GoCollaborate/artifacts/restful"
 	"github.com/GoCollaborate/artifacts/service"
-	"github.com/GoCollaborate/constants"
 	"github.com/GoCollaborate/wrappers/restfulHelper"
 	"github.com/gorilla/mux"
 	"io/ioutil"
@@ -21,7 +20,7 @@ var once sync.Once
 // singleton instance of registry center
 func GetCoordinatorInstance(port int) *Coordinator {
 	once.Do(func() {
-		singleton = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*service.Service{}, port, runtime.Version()}
+		singleton = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*service.Service{}, map[string]map[string]struct{}{}, port, runtime.Version()}
 	})
 	return singleton
 }
@@ -51,10 +50,21 @@ func HandlerFuncDeleteService(w http.ResponseWriter, r *http.Request) {
 func HandlerFuncPostServices(w http.ResponseWriter, r *http.Request) {
 	bytes, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), constants.Header415UnsupportedMediaType)
+		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), http.StatusUnsupportedMediaType)
 		return
 	}
-	singleton.CreateService(w, string(bytes))
+	singleton.CreateService(w, bytes)
+	return
+}
+
+// PUT
+func HandlerFuncAlterServices(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), http.StatusUnsupportedMediaType)
+		return
+	}
+	singleton.AlterService(w, bytes)
 	return
 }
 
@@ -65,10 +75,10 @@ func HandlerFuncRegisterService(w http.ResponseWriter, r *http.Request) {
 	srvID := vars["srvid"]
 
 	if err != nil {
-		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), constants.Header415UnsupportedMediaType)
+		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), http.StatusUnsupportedMediaType)
 		return
 	}
-	singleton.RegisterService(w, string(bytes), srvID)
+	singleton.RegisterService(w, bytes, srvID)
 	return
 }
 
@@ -79,10 +89,10 @@ func HandlerFuncSubscribeService(w http.ResponseWriter, r *http.Request) {
 	srvID := vars["srvid"]
 
 	if err != nil {
-		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), constants.Header415UnsupportedMediaType)
+		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), http.StatusUnsupportedMediaType)
 		return
 	}
-	singleton.SubscribeService(w, string(bytes), srvID)
+	singleton.SubscribeService(w, bytes, srvID)
 	return
 }
 
@@ -127,4 +137,33 @@ func HandlerFuncQueryService(w http.ResponseWriter, r *http.Request) {
 	srvID := vars["srvid"]
 	token := vars["token"]
 	singleton.QueryService(w, r, srvID, token)
+}
+
+// a handler to maintain service provider's heartbeats,
+// this interface will most likely be changed to protobuf message in the future
+func HandlerFuncHeartbeatService(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	srvID := vars["srvid"]
+	ip := vars["ip"]
+	port, _ := strconv.Atoi(vars["port"])
+	singleton.HeartbeatService(w, r, srvID, &card.Card{ip, port, true, ""})
+}
+
+func HanlderFuncGetClusterServices(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cID := vars["cid"]
+	singleton.GetClusterServices(w, r, cID)
+}
+
+func HanlderFuncPostClusterServices(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	cID := vars["cid"]
+
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), http.StatusUnsupportedMediaType)
+		return
+	}
+
+	singleton.PostClusterServices(w, r, cID, bytes)
 }

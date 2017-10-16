@@ -5,7 +5,7 @@ import (
 )
 
 type SubscriptionResource struct {
-	Resource   *restful.Resource
+	*restful.Resource
 	Attributes Subscription `json:"attributes"`
 }
 
