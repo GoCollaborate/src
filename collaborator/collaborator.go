@@ -105,12 +105,13 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 
 	go func() {
 		// service registry
-		clbt.RegisterService()
-		// todo: service mornitoring
-		// for {
-		// 	<-time.After(constants.DefaultHeartbeatInterval)
-		// 	clbt.HeartBeat()
-		// }
+		services, err := clbt.RegisterService()
+		connected := err == nil
+		// service mornitoring
+		for connected {
+			<-time.After(constants.DefaultHeartbeatInterval)
+			clbt.HeartBeat(services)
+		}
 	}()
 }
 
@@ -182,25 +183,25 @@ func (clbt *Collaborator) Clean() {
 	cardHelper.RangePrint(cards)
 }
 
-func (clbt *Collaborator) RegisterService() {
+func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error) {
 	var (
-		cdntIP = clbt.CardCase.Reserved.Coordinator.GetFullIP()
-		clbtIP = clbt.CardCase.Local.GetFullIP()
+		cdntIP   = clbt.CardCase.Reserved.Coordinator.GetFullIP()
+		clbtIP   = clbt.CardCase.Local.GetFullIP()
+		services = map[string]*service.Service{}
 	)
 
 	resp, err := http.Get("http://" + cdntIP + "/cluster/" + clbt.CardCase.CaseID + "/services")
 	if err != nil {
-		return
+		return services, err
 	}
 
 	// if cluster already get created, return to call general service registry api on coordinator
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return
+		return services, err
 	}
 
 	var (
-		router   = store.GetRouter()
-		services = map[string]*service.Service{}
+		router = store.GetRouter()
 	)
 
 	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
@@ -216,33 +217,38 @@ func (clbt *Collaborator) RegisterService() {
 			API:   t,
 			Alive: true,
 		})
-		services[clbtIP+"/"+t] = svr
+		services[clbtIP+t] = svr
 		return nil
 	})
 
 	reader, err := serviceHelper.MarshalServiceResourceToByteStreamReader(services)
 	if err != nil {
-		panic(constants.ErrCoordinatorNotFound)
-		return
+		return services, err
 	}
 
 	// walk through services and get them created on the coordinator
 	resp2, err := http.Post("http://"+cdntIP+"/services", "application/json", reader)
 	if err != nil {
-		panic(err)
+		return services, err
 	}
 
 	_, err = http.Post("http://"+cdntIP+"/cluster/"+clbt.CardCase.CaseID+"/services", "application/json", resp2.Body)
 	if err != nil {
-		panic(err)
+		return services, err
 	}
-	return
+
+	return services, nil
 }
 
-func (clbt *Collaborator) HeartBeat() {
-	// cdntIP := clbt.CardCase.Reserved.Coordinator.GetFullIP()
-	// // todo
-	// http.Get(cdntIP + "")
+func (clbt *Collaborator) HeartBeat(services map[string]*service.Service) {
+	cdntIP := clbt.CardCase.Reserved.Coordinator.GetFullIP()
+
+	reader, err := serviceHelper.MarshalHeartbeatToByteStreamReader(&clbt.CardCase.Reserved.Local, services)
+	if err != nil {
+		panic(err)
+	}
+
+	http.Post("http://"+cdntIP+"/services/heartbeat", "application/json", reader)
 }
 
 // Start handling server routes.

@@ -75,6 +75,33 @@ func MarshalCardToStandardResource(srvID string, card *card.Card) []service.Quer
 	return resources
 }
 
+func MarshalHeartbeatToStandardResource(card *card.Card, services map[string]*service.Service) []service.HeartbeatResource {
+	var resources []service.HeartbeatResource
+	for srvID, _ := range services {
+		resources = append(resources, service.HeartbeatResource{
+			Resource: &restful.Resource{
+				ID:            srvID,
+				Type:          "heartbeat",
+				Relationships: []restful.Relationship{}},
+			Attributes: service.Heartbeat{
+				Agent: *card,
+			}})
+	}
+	return resources
+}
+
+func MarshalHeartbeatToByteStream(card *card.Card, services map[string]*service.Service) ([]byte, error) {
+	payload := service.HeartbeatPayload{
+		Data: MarshalHeartbeatToStandardResource(card, services),
+	}
+	return json.Marshal(payload)
+}
+
+func MarshalHeartbeatToByteStreamReader(card *card.Card, services map[string]*service.Service) (io.Reader, error) {
+	b, err := MarshalHeartbeatToByteStream(card, services)
+	return bytes.NewReader(b), err
+}
+
 func DecodeService(bytes []byte) *service.ServicePayload {
 	payload := service.ServicePayload{}
 	json.Unmarshal(bytes, &payload)
@@ -89,6 +116,12 @@ func DecodeRegistry(bytes []byte) *service.RegistryPayload {
 
 func DecodeSubscription(bytes []byte) *service.SubscriptionPayload {
 	payload := service.SubscriptionPayload{}
+	json.Unmarshal(bytes, &payload)
+	return &payload
+}
+
+func DecodeHeartbeat(bytes []byte) *service.HeartbeatPayload {
+	payload := service.HeartbeatPayload{}
 	json.Unmarshal(bytes, &payload)
 	return &payload
 }
@@ -134,5 +167,12 @@ func SendQueryWith(w http.ResponseWriter, queryPayload *service.QueryPayload, st
 	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
 	utils.AdaptHTTPWithStatus(w, status)
 	io.WriteString(w, string(mal))
+	return nil
+}
+
+func SendHeartbeatWith(w http.ResponseWriter, status int) error {
+	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithStatus(w, status)
+	io.WriteString(w, "")
 	return nil
 }

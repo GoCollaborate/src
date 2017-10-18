@@ -45,21 +45,22 @@ const (
 
 // time consts
 var (
-	DefaultReadTimeout              = 15 * time.Second
-	DefaultPeriodShort              = 500 * time.Millisecond
-	DefaultPeriodLong               = 2000 * time.Millisecond
-	DefaultPeriodRoutineDay         = 24 * time.Hour
-	DefaultPeriodRoutineWeek        = 7 * 24 * time.Hour
-	DefaultPeriodRoutine30Days      = 30 * DefaultPeriodRoutineDay
-	DefaultPeriodPermanent          = 0 * time.Second
-	DefaultTaskExpireTime           = 30 * time.Second
-	DefaultGCInterval               = 30 * time.Second
-	DefaultMaxMappingTime           = 600 * time.Second
-	DefaultSyncInterval             = 3 * time.Minute
-	DefaultHeartbeatInterval        = 1 * time.Minute
-	DefaultJobRequestRefillInterval = 1 * time.Millisecond
-	DefaultStatFlushInterval        = 20 * time.Millisecond
-	DefaultStatAbstractInterval     = 3 * time.Second
+	DefaultReadTimeout                = 15 * time.Second
+	DefaultPeriodShort                = 500 * time.Millisecond
+	DefaultPeriodLong                 = 2000 * time.Millisecond
+	DefaultPeriodRoutineDay           = 24 * time.Hour
+	DefaultPeriodRoutineWeek          = 7 * 24 * time.Hour
+	DefaultPeriodRoutine30Days        = 30 * DefaultPeriodRoutineDay
+	DefaultPeriodPermanent            = 0 * time.Second
+	DefaultTaskExpireTime             = 30 * time.Second
+	DefaultGCInterval                 = 30 * time.Second
+	DefaultMaxMappingTime             = 600 * time.Second
+	DefaultSyncInterval               = 3 * time.Minute
+	DefaultHeartbeatInterval          = 5 * time.Second
+	DefaultJobRequestRefillInterval   = 1 * time.Millisecond
+	DefaultStatFlushInterval          = 20 * time.Millisecond
+	DefaultStatAbstractInterval       = 3 * time.Second
+	DefaultCollaboratorExpiryInterval = 10 * time.Minute
 )
 
 // executor types

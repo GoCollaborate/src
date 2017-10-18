@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
 const (
@@ -57,15 +58,21 @@ func (cdnt *Coordinator) Handle(router *mux.Router) *mux.Router {
 	// alter services
 	router.HandleFunc("/services", HandlerFuncAlterServices).Methods("PUT")
 
-	router.HandleFunc("/services/{srvid}/heartbeat", HandlerFuncHeartbeatService).Methods("GET")
+	// router.HandleFunc("/services/{srvid}/heartbeat", HandlerFuncHeartbeatServices).Methods("GET")
 
 	// clustering apis
 	router.HandleFunc("/cluster/{cid}/services", HanlderFuncGetClusterServices).Methods("GET")
 	// include service in cluster
 	// no message body is required
 	router.HandleFunc("/cluster/{cid}/services", HanlderFuncPostClusterServices).Methods("POST")
+	// services should be decoupled from cluster
+	router.HandleFunc("/services/heartbeat", HandlerFuncHeartbeatServices).Methods("POST")
 
-	cdnt.Dump()
+	go func() {
+		<-time.After(constants.DefaultCollaboratorExpiryInterval)
+		cdnt.Clean()
+		cdnt.Dump()
+	}()
 	return router
 }
 
@@ -105,11 +112,12 @@ func (cdnt *Coordinator) CreateService(w http.ResponseWriter, bytes []byte) erro
 	for _, dat := range payload.Data {
 		if dat.Type == "service" {
 			id := utils.RandStringBytesMaskImprSrc(ServiceLength)
-			svrs := dat.Attributes
-			svrs.ServiceID = id
-			svrs.LastAssignedTime = int64(0)
-			cdnt.Services[id] = &svrs
+			svr := service.NewServiceFrom(&dat.Attributes)
+			svr.ServiceID = id
+			svr.LastAssignedTime = int64(0)
+			cdnt.Services[id] = svr
 			dat.ID = id
+			dat.Attributes = *svr
 			resData = append(resData, dat)
 		}
 	}
@@ -355,18 +363,20 @@ func (cdnt *Coordinator) RefreshList() {
 	return
 }
 
-func (cdnt *Coordinator) HeartbeatService(w http.ResponseWriter, r *http.Request, srvID string, cd *card.Card) {
-	if _, ok := cdnt.Services[srvID]; !ok {
-		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), http.StatusNotFound)
-		return
+func (cdnt *Coordinator) HeartbeatServices(w http.ResponseWriter, bytes []byte) error {
+	payload := serviceHelper.DecodeHeartbeat(bytes)
+
+	for _, dat := range payload.Data {
+		if dat.Type == "heartbeat" {
+			srvID := dat.ID
+			if _, ok := cdnt.Services[srvID]; !ok {
+				restfulHelper.SendErrorWith(w, restful.Error404NotFound(), http.StatusNotFound)
+				return constants.ErrNoService
+			}
+			cdnt.Services[srvID].Heartbeat(&dat.Attributes.Agent)
+		}
 	}
-
-	cdnt.Services[srvID].Heartbeat(cd)
-
-	// if succeed, return empty payload
-	payload := service.ServicePayload{}
-	serviceHelper.SendServiceWith(w, &payload, http.StatusOK)
-	return
+	return serviceHelper.SendHeartbeatWith(w, http.StatusOK)
 }
 
 func (cdnt *Coordinator) GetClusterServices(w http.ResponseWriter, r *http.Request, cID string) error {
@@ -434,7 +444,26 @@ func (cdnt *Coordinator) PostClusterServices(w http.ResponseWriter, r *http.Requ
 	return serviceHelper.SendServiceWith(w, payload, http.StatusOK)
 }
 
-func (rc *Coordinator) Dump() {
+// Clean up the register list.
+func (cdnt *Coordinator) Clean() {
+	services := cdnt.Services
+
+	for _, s := range services {
+		var (
+			regs       = s.RegList
+			heartbeats = s.Heartbeats
+		)
+
+		for _, r := range regs {
+			if t, ok := heartbeats[r.GetFullEndPoint()]; !ok ||
+				time.Now().Unix()-t > int64(constants.DefaultCollaboratorExpiryInterval) {
+				s.DeRegister(&r)
+			}
+		}
+	}
+}
+
+func (cdnt *Coordinator) Dump() {
 	// dump registry data to local dat file
 	// constants.DataStorePath
 	err1 := os.Chmod(constants.DefaultDataStorePath, 0777)
@@ -442,7 +471,7 @@ func (rc *Coordinator) Dump() {
 		logger.LogWarning("Create new data source.")
 		logger.GetLoggerInstance().LogWarning("Create new data source.")
 	}
-	mal, err2 := json.Marshal(&rc)
+	mal, err2 := json.Marshal(&cdnt)
 	err2 = ioutil.WriteFile(constants.DefaultDataStorePath, mal, os.ModeExclusive|os.ModeAppend)
 	if err2 != nil {
 		panic(err2)

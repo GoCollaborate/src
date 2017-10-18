@@ -5,6 +5,7 @@ import (
 	"github.com/GoCollaborate/artifacts/parameter"
 	"github.com/GoCollaborate/constants"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,7 @@ type Service struct {
 	PlatformVersion  string           `json:"platform_version"`
 	LastAssignedTo   card.Card        `json:"last_assigned_to,omitempty"`
 	LastAssignedTime int64            `json:"last_assigned_time,omitempty"`
+	serviceLock      sync.Mutex       `json:"-"`
 }
 
 func NewService() *Service {
@@ -35,6 +37,21 @@ func NewService() *Service {
 		Dependencies:    []string{},
 		Version:         "1.0",
 		PlatformVersion: "golang1.8.1",
+		serviceLock:     sync.Mutex{},
+	}
+}
+
+func NewServiceFrom(from *Service) *Service {
+	return &Service{
+		Description:     from.Description,
+		Parameters:      from.Parameters,
+		RegList:         from.RegList,
+		Heartbeats:      map[string]int64{},
+		SbscrbList:      from.SbscrbList,
+		Dependencies:    from.Dependencies,
+		Version:         from.Version,
+		PlatformVersion: from.PlatformVersion,
+		serviceLock:     sync.Mutex{},
 	}
 }
 
@@ -61,6 +78,8 @@ func (s *Service) GetLoadBalanceMode() Mode {
 }
 
 func (s *Service) Register(agt *card.Card) error {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	for _, r := range s.RegList {
 		if agt.IsEqualTo(&r) {
 			return constants.ErrConflictRegister
@@ -72,6 +91,8 @@ func (s *Service) Register(agt *card.Card) error {
 
 // de-register function will not preserve the original order of registers
 func (s *Service) DeRegister(agt *card.Card) error {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	y := s.RegList[:0]
 
 	for i, x := range s.RegList {
@@ -85,12 +106,16 @@ func (s *Service) DeRegister(agt *card.Card) error {
 }
 
 func (s *Service) DeRegisterAll() error {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	y := []card.Card{}
 	s.RegList = y
 	return nil
 }
 
 func (s *Service) Subscribe(token string) error {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	for _, sbscr := range s.SbscrbList {
 		if token == sbscr {
 			return constants.ErrConflictSubscriber
@@ -101,6 +126,8 @@ func (s *Service) Subscribe(token string) error {
 }
 
 func (s *Service) UnSubscribe(token string) error {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	y := s.SbscrbList[:0]
 	for i, x := range s.SbscrbList {
 		if x == token {
@@ -129,12 +156,16 @@ func (s *Service) loadBalanceRoll() *card.Card {
 }
 
 func (s *Service) UnSubscribeAll() error {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	y := []string{}
 	s.SbscrbList = y
 	return nil
 }
 
 func (s *Service) Heartbeat(agt *card.Card) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
 	y := s.RegList
 	for _, x := range y {
 		if agt.IsEqualTo(&x) {

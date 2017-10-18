@@ -19,6 +19,11 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.6
+- Update service register heartbeats
+- Add GC for expired services
+- Add TaskHelper utility
+- Create API test packs
 #### 0.2.5
 - Add analytics support
 - Optimize UI

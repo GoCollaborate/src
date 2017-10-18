@@ -141,12 +141,13 @@ func HandlerFuncQueryService(w http.ResponseWriter, r *http.Request) {
 
 // a handler to maintain service provider's heartbeats,
 // this interface will most likely be changed to protobuf message in the future
-func HandlerFuncHeartbeatService(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	srvID := vars["srvid"]
-	ip := vars["ip"]
-	port, _ := strconv.Atoi(vars["port"])
-	singleton.HeartbeatService(w, r, srvID, &card.Card{ip, port, true, ""})
+func HandlerFuncHeartbeatServices(w http.ResponseWriter, r *http.Request) {
+	bytes, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		restfulHelper.SendErrorWith(w, restful.Error415UnsupportedMediaType(), http.StatusUnsupportedMediaType)
+		return
+	}
+	singleton.HeartbeatServices(w, bytes)
 }
 
 func HanlderFuncGetClusterServices(w http.ResponseWriter, r *http.Request) {
