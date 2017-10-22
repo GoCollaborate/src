@@ -134,6 +134,11 @@ var (
 	ErrTaskChannelDirty                = errors.New("GoCollaborate: task channel has unconsumed task error")
 	ErrStatTypeNotFound                = errors.New("GoCollaborate: stat type not found error")
 	ErrCoordinatorNotFound             = errors.New("GoCollaborate: coordinator not found error")
+	ErrInputStreamCorrupted            = errors.New("GoCollaborate: input stream corrupted error")
+	ErrInputStreamNotSupported         = errors.New("GoCollaborate: input stream type not suppoted error")
+	ErrIODecodePointerRequired         = errors.New("GoCollaborate: Decode error, the reference instance must be a pointer")
+	ErrIODecodeSliceRequired           = errors.New("GoCollaborate: Decode error, the reference instance must be a slice")
+	ErrIODecodeStructRequired          = errors.New("GoCollaborate: Decode error, the reference instance must be a struct")
 )
 
 type Header struct {

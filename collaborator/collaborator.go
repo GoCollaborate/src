@@ -44,7 +44,7 @@ func NewCollaborator() *Collaborator {
 }
 
 func newCase() *Case {
-	return &Case{cmd.Vars().CaseID, Exposed{make(map[string]card.Card), time.Now().Unix()}, Reserved{*card.Default(), card.Card{}}}
+	return &Case{cmd.Vars().CaseID, &Exposed{make(map[string]card.Card), time.Now().Unix()}, &Reserved{*card.Default(), card.Card{}}}
 }
 
 // Join a master to the collaborator network.
@@ -69,23 +69,27 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 	logger.GetLoggerInstance().LogListPoint(clbt.CardCase.CaseID)
 
 	ip := utils.GetLocalIP()
-	logger.LogNormal("Local Address:")
-	logger.LogListPoint(ip)
-	logger.GetLoggerInstance().LogNormal("Local Address:")
-	logger.GetLoggerInstance().LogListPoint(ip)
 
 	cards := clbt.CardCase.Digest().Cards()
 
+	logger.LogNormal("Cards:")
+	logger.GetLoggerInstance().LogNormal("Cards:")
 	cardHelper.RangePrint(cards)
 
 	local := clbt.CardCase.Local
 
 	// update if self does not exist
-	if card, ok := clbt.CardCase.Exposed.Cards[local.GetFullIP()]; !ok || !card.IsEqualTo(&local) {
+	if card, ok := clbt.CardCase.Cards[local.GetFullIP()]; !ok || !card.IsEqualTo(&local) {
 
-		clbt.CardCase.Exposed.Cards[local.GetFullIP()] = local
+		clbt.CardCase.Cards[local.GetFullIP()] = local
 		clbt.CardCase.Stamp()
 	}
+
+	local.IP = ip
+
+	logger.LogNormal("Local:")
+	logger.GetLoggerInstance().LogNormal("Local:")
+	cardHelper.RangePrint(map[string]card.Card{local.GetFullIP(): local})
 
 	// start active message handler
 	clbt.CardCase.Action()
@@ -117,17 +121,20 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 
 // Catchup with peer servers.
 func (clbt *Collaborator) Catchup() {
-	c := &clbt.CardCase
+	var (
+		c = &clbt.CardCase
 
-	dgst := c.Digest()
-	cards := dgst.Cards()
+		dgst  = c.Digest()
+		cards = dgst.Cards()
 
-	max := cmd.Vars().GossipNum
-	done := 0
+		max  = cmd.Vars().GossipNum
+		done = 0
+		seed = 0
+	)
 
 	for key, e := range cards {
 		// stop gossipping if already walk through max nodes
-		if done > max {
+		if done > max && seed > 0 {
 			break
 		}
 
@@ -137,9 +144,9 @@ func (clbt *Collaborator) Catchup() {
 			if err != nil {
 				logger.LogWarning("Connection failed while bridging")
 				logger.GetLoggerInstance().LogWarning("Connection failed while bridging")
-				override := c.Exposed.Cards[key]
+				override := c.Cards[key]
 				override.Alive = false
-				c.Exposed.Cards[key] = override
+				c.Cards[key] = override
 				c.writeStream()
 				continue
 			}
@@ -163,6 +170,10 @@ func (clbt *Collaborator) Catchup() {
 			}
 		}
 
+		// if the collaborator is not a seed, server should attempt to contact a seed
+		if e.IsSeed() {
+			seed++
+		}
 		done++
 	}
 }
@@ -185,7 +196,7 @@ func (clbt *Collaborator) Clean() {
 
 func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error) {
 	var (
-		cdntIP   = clbt.CardCase.Reserved.Coordinator.GetFullIP()
+		cdntIP   = clbt.CardCase.Coordinator.GetFullIP()
 		clbtIP   = clbt.CardCase.Local.GetFullIP()
 		services = map[string]*service.Service{}
 	)
@@ -241,9 +252,9 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 }
 
 func (clbt *Collaborator) HeartBeat(services map[string]*service.Service) {
-	cdntIP := clbt.CardCase.Reserved.Coordinator.GetFullIP()
+	cdntIP := clbt.CardCase.Coordinator.GetFullIP()
 
-	reader, err := serviceHelper.MarshalHeartbeatToByteStreamReader(&clbt.CardCase.Reserved.Local, services)
+	reader, err := serviceHelper.MarshalHeartbeatToByteStreamReader(&clbt.CardCase.Local, services)
 	if err != nil {
 		panic(err)
 	}
@@ -382,15 +393,15 @@ func (c *Collaborator) launchServer() {
 }
 
 func launchClient(endpoint string, port int) (*RPCClient, error) {
-	clientContact := card.Card{endpoint, port, true, ""}
+	clientContact := card.Card{endpoint, port, true, "", false}
 	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
 	if err != nil {
 		logger.LogError("Dialing:", err)
 		logger.GetLoggerInstance().LogError("Dialing:", err)
 		return &RPCClient{}, err
 	}
-	Card := &RPCClient{Client: client}
-	return Card, nil
+	cWrapper := &RPCClient{Client: client}
+	return cWrapper, nil
 }
 
 // Handle local Job routes.

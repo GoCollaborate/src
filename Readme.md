@@ -19,6 +19,10 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.7
+- Add seeds to Gossip protocol
+- Support reading streams of CSV file from various soruces
+- Update examples and test scripts
 #### 0.2.6
 - Update service register heartbeats
 - Add GC for expired services
@@ -101,24 +105,28 @@ Configure file `case.json`:
 		"localhost:57851": {
 			"ip": "localhost",
 			"port": 57851,
-			"alive": true
+			"alive": false,
+			"seed": false
 		},
 		"localhost:57852": {
 			"ip": "localhost",
 			"port": 57852,
-			"alive": true
+			"alive": true,
+			"seed": true
 		}
 	},
-	"timestamp": 1505998322,
+	"timestamp": 1508619931,
 	"local": {
 		"ip": "localhost",
-		"port": 57851,
-		"alive": true
+		"port": 57852,
+		"alive": true,
+		"seed": true
 	},
 	"coordinator": {
-		"ip": "",
+		"ip": "localhost",
 		"port": 0,
-		"alive": false
+		"alive": true,
+		"seed": false
 	}
 }
 ```
@@ -226,27 +234,25 @@ cd Your_Project_Name_Copy
 {
 	"caseid": "GoCollaborateStandardCase",
 	"cards": {
-		"localhost:57851": {
-			"ip": "localhost",
-			"port": 57851,
-			"alive": true
-		},
 		"localhost:57852": {
 			"ip": "localhost",
 			"port": 57852,
-			"alive": true
+			"alive": true,
+			"seed": true
 		}
 	},
-	"timestamp": 1505998322,
+	"timestamp": 1508619931,
 	"local": {
 		"ip": "localhost",
 		"port": 57851,
-		"alive": true
+		"alive": true,
+		"seed": false
 	},
 	"coordinator": {
-		"ip": "",
+		"ip": "localhost",
 		"port": 0,
-		"alive": false
+		"alive": true,
+		"seed": false
 	}
 }
 ```
@@ -271,3 +277,4 @@ http://localhost:8080
 - [mattn/go-isatty](https://github.com/mattn/go-isatty)
 - [gorilla/mux](https://github.com/gorilla/mux)
 - [satori/go.uuid](https://github.com/satori/go.uuid)
+- [radioinmyhead/csv](https://github.com/radioinmyhead/csv)

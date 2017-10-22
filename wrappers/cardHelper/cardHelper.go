@@ -9,24 +9,43 @@ func UnmarshalCards(original []interface{}) []card.Card {
 	var cards []card.Card
 	for _, o := range original {
 		oo := o.(map[string]interface{})
+
+		var (
+			api  string = ""
+			seed bool   = false
+		)
+
 		if oo["api"] != nil {
-			cards = append(cards, card.Card{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), oo["api"].(string)})
-			continue
+			api = oo["api"].(string)
 		}
-		cards = append(cards, card.Card{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), ""})
+
+		if oo["seed"] != nil {
+			seed = oo["seed"].(bool)
+		}
+
+		cards = append(cards, card.Card{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), api, seed})
 	}
 	return cards
 }
 
 func RangePrint(cards map[string]card.Card) {
-	logger.LogNormal("Cards:")
 	for _, c := range cards {
-		var alive string
+		var (
+			alive string
+			seed  string
+		)
 		if c.Alive {
 			alive = "Alive"
 		} else {
 			alive = "Terminated"
 		}
-		logger.LogListPoint(c.GetFullIP(), alive)
+
+		if c.IsSeed() {
+			seed = "Seed"
+		} else {
+			seed = "Non-Seed"
+		}
+		logger.LogListPoint(c.GetFullIP(), alive, seed)
+		logger.GetLoggerInstance().LogListPoint(c.GetFullIP(), alive, seed)
 	}
 }

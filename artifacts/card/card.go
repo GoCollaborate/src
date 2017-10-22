@@ -11,6 +11,7 @@ type Card struct {
 	Port  int    `json:"port"`
 	Alive bool   `json:"alive"`
 	API   string `json:"api,omitempty"`
+	Seed  bool   `json:"seed,omitempty"`
 }
 
 func (c *Card) GetFullIP() string {
@@ -22,7 +23,7 @@ func (c *Card) GetFullExposureAddress() string {
 }
 
 func (c *Card) GetFullExposureCard() Card {
-	return Card{utils.MapToExposureAddress(c.IP), c.Port, c.Alive, c.API}
+	return Card{utils.MapToExposureAddress(c.IP), c.Port, c.Alive, c.API, c.Seed}
 }
 
 func (c *Card) GetFullEndPoint() string {
@@ -33,7 +34,15 @@ func (c *Card) IsEqualTo(another *Card) bool {
 	return c.GetFullIP() == another.GetFullIP() || c.GetFullExposureAddress() == another.GetFullExposureAddress()
 }
 
+func (c *Card) IsSeed() bool {
+	return c.Seed
+}
+
+func (c *Card) ToSeed() {
+	c.Seed = true
+}
+
 // current RPC port
 func Default() *Card {
-	return &Card{utils.GetLocalIP(), utils.GetPort(), true, ""}
+	return &Card{utils.GetLocalIP(), utils.GetPort(), true, "", true}
 }

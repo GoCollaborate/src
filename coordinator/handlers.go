@@ -118,7 +118,7 @@ func HandlerFuncDeRegisterService(w http.ResponseWriter, r *http.Request) {
 	srvID := vars["srvid"]
 	ip := vars["ip"]
 	port, _ := strconv.Atoi(vars["port"])
-	singleton.DeRegisterService(w, r, srvID, &card.Card{ip, port, true, ""})
+	singleton.DeRegisterService(w, r, srvID, &card.Card{ip, port, true, "", false})
 	return
 }
 

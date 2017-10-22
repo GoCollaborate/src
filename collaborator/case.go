@@ -20,8 +20,8 @@ var mu = sync.Mutex{}
 
 type Case struct {
 	CaseID string `json:"caseid,omitempty"`
-	Exposed
-	Reserved
+	*Exposed
+	*Reserved
 }
 
 type Exposed struct {
@@ -75,7 +75,7 @@ func (c *Case) Action() {
 }
 
 func (c *Case) Stamp() *Case {
-	c.Exposed.TimeStamp = time.Now().Unix()
+	c.TimeStamp = time.Now().Unix()
 	return c
 }
 
@@ -84,29 +84,29 @@ func (c *Case) Cluster() string {
 }
 
 func (c *Case) Digest() iremote.IDigest {
-	return &digest.Digest{c.Exposed.Cards, c.Exposed.TimeStamp}
+	return &digest.Digest{c.Cards, c.TimeStamp}
 }
 
 func (c *Case) Update(dgst iremote.IDigest) {
-	c.Exposed.Cards = dgst.Cards()
-	c.Exposed.TimeStamp = dgst.TimeStamp()
+	c.Cards = dgst.Cards()
+	c.TimeStamp = dgst.TimeStamp()
 }
 
 func (c *Case) Terminate(key string) *Case {
 	mu.Lock()
 	defer mu.Unlock()
-	delete(c.Exposed.Cards, key)
+	delete(c.Cards, key)
 	return c
 }
 
 func (c *Case) ReturnByPos(pos int) card.Card {
 	mu.Lock()
 	defer mu.Unlock()
-	if l := len(c.Exposed.Cards); pos > l {
+	if l := len(c.Cards); pos > l {
 		pos = pos % l
 	}
 	counter := 0
-	for _, a := range c.Exposed.Cards {
+	for _, a := range c.Cards {
 		if counter == pos {
 			return a
 		}
@@ -177,7 +177,7 @@ func (c *Case) Validate(in *message.CardMessage, out *message.CardMessage) error
 		out.SetStatus(constants.GossipHeaderCaseMismatch)
 		return constants.ErrCaseMismatch
 	}
-	if to := in.To(); !c.Reserved.Local.IsEqualTo(&to) {
+	if to := in.To(); !c.Local.IsEqualTo(&to) {
 		logger.LogError(c)
 		out.SetStatus(constants.GossipHeaderCollaboratorMismatch)
 		return constants.ErrCollaboratorMismatch
