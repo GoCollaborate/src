@@ -1,9 +1,9 @@
 # GoCollaborate
 ![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 ## What is GoCollaborate?
-GoCollaborate is an universal framework for distributed services management that you can easily program with, build extension on, and on top of which you can create your own high performance distributed services like a breeze.
+GoCollaborate is an universal framework for stream computing and distributed services management that you can easily program with, build extension on, and on top of which you can create your own high performance distributed applications.
 ### The Idea Behind
-GoCollaborate absorbs the best practice experience from popular distributed services frameworks like[✨Hadoop](https://hadoop.apache.org/), [✨ZooKeeper](https://zookeeper.apache.org/), [✨Dubbo](http://dubbo.io/) and [✨Kite](https://github.com/koding/kite) that helps to ideally resolve the communication and collaboration issues among multiple isolated peer servers.
+GoCollaborate absorbs the best practice experience and improves from the popular distributed computing frameworks including[✨Hadoop](https://hadoop.apache.org/), [✨Spark](https://spark.apache.org/), [✨ZooKeeper](https://zookeeper.apache.org/), [✨Dubbo](http://dubbo.io/) and [✨Kite](https://github.com/koding/kite) that helps to ideally provision the computability for large scale data sets with an easy-to-launch setups.
 ### Am I Free to Use GoCollaborate?
 Yes! Please check out the terms of the BSD License.
 ### Contribution

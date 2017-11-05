@@ -85,17 +85,17 @@ func VarsJSONArrayStr() string {
 		"CleanHistory",
 		"WorkerPerMaster",
 		"GossipNum"],
-	"data":[["CaseID","string","` + singleton.CaseID + `"],
-	["ServerMode","string","` + singleton.ServerMode + `"],
-	["DebugMode","bool",` + strconv.FormatBool(singleton.DebugMode) + `],
-	["Port","int",` + strconv.Itoa(singleton.Port) + `],
-	["CasePath","string","` + singleton.CasePath + `"],
-	["LogPath","string","` + singleton.LogPath + `"],
-	["DataStorePath","string","` + singleton.DataStorePath + `"],
-	["MaxRoutines","int",` + strconv.Itoa(singleton.MaxRoutines) + `],
-	["CleanHistory","bool",` + strconv.FormatBool(singleton.CleanHistory) + `],
-	["WorkerPerMaster","int",` + strconv.Itoa(singleton.WorkerPerMaster) + `],
-	["GossipNum","int",` + strconv.Itoa(singleton.GossipNum) + `]]}`
+		"data":[["CaseID","string","` + singleton.CaseID + `"],
+			["ServerMode","string","` + singleton.ServerMode + `"],
+			["DebugMode","bool",` + strconv.FormatBool(singleton.DebugMode) + `],
+			["Port","int",` + strconv.Itoa(singleton.Port) + `],
+			["CasePath","string","` + singleton.CasePath + `"],
+			["LogPath","string","` + singleton.LogPath + `"],
+			["DataStorePath","string","` + singleton.DataStorePath + `"],
+			["MaxRoutines","int",` + strconv.Itoa(singleton.MaxRoutines) + `],
+			["CleanHistory","bool",` + strconv.FormatBool(singleton.CleanHistory) + `],
+			["WorkerPerMaster","int",` + strconv.Itoa(singleton.WorkerPerMaster) + `],
+			["GossipNum","int",` + strconv.Itoa(singleton.GossipNum) + `]]}`
 }
 
 func Init() {
