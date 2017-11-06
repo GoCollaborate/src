@@ -19,6 +19,12 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.8
+- Update entry API -> []task.Countable -> task.Collection
+- Provide built-in functions for task.Collection
+- Update examples
+- Update entry API -> function return type changed to bool
+- Add pagination to UI
 #### 0.2.7
 - Add seeds to Gossip protocol
 - Support reading streams of CSV file from various soruces
@@ -165,28 +171,25 @@ func ExampleJobHandler(w http.ResponseWriter, r *http.Request) *task.Job {
 	job := task.MakeJob()
 	job.Tasks(&task.Task{task.SHORT,
 		task.BASE, "exampleFunc",
-		[]task.Countable{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
-		[]task.Countable{0},
+		task.Collection{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
+		task.Collection{0},
 		task.NewTaskContext(struct{}{}), 0})
 	job.Stacks("core.ExampleTask.Mapper", "core.ExampleTask.Reducer")
 	return job
 }
 
-func ExampleFunc(source *[]task.Countable,
-	result *[]task.Countable,
-	context *task.TaskContext) chan bool {
-	out := make(chan bool)
+func ExampleFunc(source *task.Collection,
+	result *task.Collection,
+	context *task.TaskContext) bool {
 	// deal with passed in request
-	go func() {
-		fmt.Println("Example Task Executed...")
-		var total int
-		for _, n := range *source {
-			total += n.(int)
-		}
-		*result = append(*result, total)
-		out <- true
-	}()
-	return out
+	fmt.Println("Example Task Executed...")
+	var total int
+	// the function will calculate the sum of source data
+	for _, n := range *source {
+		total += n.(int)
+	}
+	result.Append(total)
+	return true
 }
 
 type SimpleMapper int
@@ -209,6 +212,7 @@ func (r *SimpleReducer) Reduce(maps map[int]*task.Task) (map[int]*task.Task, err
 	fmt.Printf("The task set is: %v", maps)
 	return maps, nil
 }
+
 
 ```
 ### Run

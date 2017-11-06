@@ -35,9 +35,9 @@ func Set(key string, val ...interface{}) interface{} {
 	case constants.Function:
 		// register function
 		fs := store.GetInstance()
-		f := val[0].(func(source *[]task.Countable,
-			result *[]task.Countable,
-			context *task.TaskContext) chan bool)
+		f := val[0].(func(source *task.Collection,
+			result *task.Collection,
+			context *task.TaskContext) bool)
 		if len(val) > 1 {
 			fs.Add(f, val[1].(string))
 			break
@@ -46,9 +46,9 @@ func Set(key string, val ...interface{}) interface{} {
 	case constants.HashFunction:
 		// register hash function
 		fs := store.GetInstance()
-		f := val[0].(func(source *[]task.Countable,
-			result *[]task.Countable,
-			context *task.TaskContext) chan bool)
+		f := val[0].(func(source *task.Collection,
+			result *task.Collection,
+			context *task.TaskContext) bool)
 		return fs.HAdd(f)
 	case constants.Shared:
 		fs := store.GetInstance()

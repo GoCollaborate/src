@@ -48,10 +48,9 @@ func GetMsgChan() chan *message.CardMessageFuture {
 
 func GetInstance() *FS {
 	once.Do(func() {
-		singleton = &FS{make(map[string]func(source *[]task.Countable,
-			result *[]task.Countable,
-			context *task.TaskContext) chan bool),
-			// make(map[string]chan bool),
+		singleton = &FS{make(map[string]func(source *task.Collection,
+			result *task.Collection,
+			context *task.TaskContext) bool),
 			make(map[string]*color),
 			make(map[string]iexecutor.IExecutor),
 			make(map[string]*task.Job),
@@ -64,10 +63,9 @@ func GetInstance() *FS {
 }
 
 type FS struct {
-	Funcs map[string]func(source *[]task.Countable,
-		result *[]task.Countable,
-		context *task.TaskContext) chan bool
-	// Outbound   map[string]chan bool
+	Funcs map[string]func(source *task.Collection,
+		result *task.Collection,
+		context *task.TaskContext) bool
 	memstack   map[string]*color
 	executors  map[string]iexecutor.IExecutor
 	jobs       map[string]*task.Job
@@ -82,9 +80,9 @@ type JobFunc struct {
 	Signature string
 }
 
-func (fs *FS) Add(f func(source *[]task.Countable,
-	result *[]task.Countable,
-	context *task.TaskContext) chan bool, id ...string) {
+func (fs *FS) Add(f func(source *task.Collection,
+	result *task.Collection,
+	context *task.TaskContext) bool, id ...string) {
 	var i string
 	if len(id) < 1 {
 		i = utils.StripRouteToFunctName(utils.ReflectFuncName(f))
@@ -95,12 +93,11 @@ func (fs *FS) Add(f func(source *[]task.Countable,
 	mu.Lock()
 	defer mu.Unlock()
 	fs.Funcs[i] = f
-	// fs.Outbound[i] = make(chan bool)
 }
 
-func (fs *FS) HAdd(f func(source *[]task.Countable,
-	result *[]task.Countable,
-	context *task.TaskContext) chan bool) (hash string) {
+func (fs *FS) HAdd(f func(source *task.Collection,
+	result *task.Collection,
+	context *task.TaskContext) bool) (hash string) {
 	hash = utils.RandStringBytesMaskImprSrc(constants.DefaultHashLength)
 
 	mu.Lock()
@@ -111,8 +108,8 @@ func (fs *FS) HAdd(f func(source *[]task.Countable,
 	return
 }
 
-func (fs *FS) Call(id string, source *[]task.Countable,
-	result *[]task.Countable,
+func (fs *FS) Call(id string, source *task.Collection,
+	result *task.Collection,
 	context *task.TaskContext) bool {
 
 	var (
@@ -121,30 +118,17 @@ func (fs *FS) Call(id string, source *[]task.Countable,
 
 	if f := fs.Funcs[id]; f != nil {
 		if c := fs.memstack[id]; c != nil {
-			// fs.Outbound[id] <- <-f(source, result, context)
-			bol = <-f(source, result, context)
+			bol = f(source, result, context)
 			*fs.memstack[id] = white
 			return bol
 		}
-		bol = <-f(source, result, context)
-		// fs.Outbound[id] <- <-f(source, result, context)
+		bol = f(source, result, context)
 		return bol
 	}
 
 	logger.LogError(constants.ErrFunctNotExist)
 	return bol
 }
-
-// func (fs *FS) Listen(id string) chan bool {
-// 	if o := fs.Outbound[id]; o != nil {
-// 		return o
-// 	}
-// 	logger.LogError(constants.ErrFunctNotExist)
-// 	out := make(chan bool)
-// 	defer close(out)
-// 	out <- false
-// 	return out
-// }
 
 func (fs *FS) SetMapper(mp imapper.IMapper, name string) {
 	exe := iexecutor.Default()

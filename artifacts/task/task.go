@@ -55,14 +55,45 @@ func (t *taskPriority) GetPriority() taskPriority {
 	return *t
 }
 
+func (cg *Collection) Append(cs ...Countable) *Collection {
+	*cg = append(*cg, cs...)
+	return cg
+}
+
+func (cg *Collection) IsEmpty() bool {
+	return len(*cg) == 0
+}
+
+func (cg *Collection) Length() int {
+	return len(*cg)
+}
+
+func (cg *Collection) Filter(f func(Countable) bool) *Collection {
+	var (
+		clct = Collection{}
+	)
+
+	for _, c := range *cg {
+		if f(c) {
+			clct = append(clct, c)
+		}
+	}
+
+	*cg = clct
+
+	return cg
+}
+
 type Task struct {
 	Type       taskType
 	Priority   taskPriority
 	Consumable string
-	Source     []Countable
-	Result     []Countable
+	Source     Collection
+	Result     Collection
 	Context    *TaskContext
 	Stage      int
 }
+
+type Collection []Countable
 
 type Countable interface{}
