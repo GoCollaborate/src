@@ -27,7 +27,7 @@ type source struct {
 }
 
 type CSVOperator struct {
-	s *source
+	s *source // input source
 }
 
 func (s *source) NewCSVOperator() *CSVOperator {
