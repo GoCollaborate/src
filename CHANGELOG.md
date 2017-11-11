@@ -2,6 +2,9 @@
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.2.x
+#### 0.2.9
+- Optimize UI
+- Add comments
 #### 0.2.8
 - Update entry API -> []task.Countable -> task.Collection
 - Provide built-in functions for task.Collection

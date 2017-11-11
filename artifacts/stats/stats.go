@@ -12,8 +12,10 @@ var (
 )
 
 type StatsManager struct {
-	stats         map[string]*AbstractArray
-	StatsChan     map[string]chan Hit
+	stats map[string]*AbstractArray
+	// channel of hits
+	StatsChan map[string]chan Hit
+	// accumulative hits
 	StatsAcc      map[string]*[]Hit
 	StatsPolicies map[string]*AbsPolicy
 }
@@ -67,6 +69,7 @@ func GetStatsInstance() *StatsManager {
 		singleton.Observe("tasks")
 		singleton.Observe("hits")
 
+		// flush hits from stats channel to hits array
 		go func() {
 			for {
 				singleton.flush()
@@ -74,6 +77,7 @@ func GetStatsInstance() *StatsManager {
 			}
 		}()
 
+		// generate abstract from hits array
 		go func() {
 			for {
 				singleton.abstract()
@@ -84,6 +88,7 @@ func GetStatsInstance() *StatsManager {
 	return singleton
 }
 
+// Record a hit
 func (sm *StatsManager) Record(t string, v interface{}, k ...string) error {
 	if ch, ok := sm.StatsChan[t]; ok {
 		if len(k) > 0 {
@@ -98,6 +103,7 @@ func (sm *StatsManager) Record(t string, v interface{}, k ...string) error {
 	return constants.ErrStatTypeNotFound
 }
 
+// Specify the custom route to observe
 func (sm *StatsManager) Observe(route string) {
 	var (
 		arr  = DefaultAbstractArray()
@@ -109,10 +115,12 @@ func (sm *StatsManager) Observe(route string) {
 	sm.StatsAcc[route] = acc
 }
 
+// Return a map of routes - AbstractArray
 func (sm *StatsManager) Stats() map[string]*AbstractArray {
 	return sm.stats
 }
 
+// Flush hits from observed channels into hits array
 func (sm *StatsManager) flush() {
 	for arrk, _ := range sm.stats {
 		var (
@@ -122,12 +130,12 @@ func (sm *StatsManager) flush() {
 		)
 
 		if ch, ok = sm.StatsChan[arrk]; !ok {
-			// no channel match against the abstract
+			// no channel match against the abstract, skip current loop
 			continue
 		}
 
 		if vs, ok = sm.StatsAcc[arrk]; !ok {
-			// no hit array match against the abstract
+			// no hit array match against the abstract, skip current loop
 			continue
 		}
 
@@ -140,6 +148,7 @@ func (sm *StatsManager) flush() {
 	}
 }
 
+// Generate abstract from hits array
 func (sm *StatsManager) abstract() {
 	for arrk, arr := range sm.stats {
 		var (
@@ -158,14 +167,16 @@ func (sm *StatsManager) abstract() {
 			continue
 		}
 
+		// extended array
 		ext := *vs
 		*vs = []Hit{}
 
-		// empty array
+		// no extension
 		if len(ext) < 1 {
 			continue
 		}
 
+		// append extension to abstract array
 		arr.Array = append(arr.Array,
 			Abstract{
 				Val:   pol.Funct(ext...),
