@@ -1,4 +1,5 @@
 # GoCollaborate
+[![Build Status](https://travis-ci.org/GoCollaborate/tests.svg?branch=master)](https://travis-ci.org/GoCollaborate/tests)
 ![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 ## What is GoCollaborate?
 GoCollaborate is an universal framework for stream computing and distributed services management that you can easily program with, build extension on, and on top of which you can create your own high performance distributed applications.
@@ -12,11 +13,12 @@ This project is currently under development, please feel free to fork it and rep
 Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/) document for more information.
 
 ### Relative Links
-- [Source code](https://github.com/HastingsYoung/GoCollaborate)
-- [Examples](https://github.com/HastingsYoung/GoCollaborateExamples)
+- [Source code](https://github.com/GoCollaborate/src)
+- [Examples](https://github.com/GoCollaborate/examples)
 - [Document](https://hastingsyoung.gitbooks.io/gocollaborateapi/content/)
 - [GoCollaborate UI](https://github.com/HastingsYoung/Material-Dashboard-UI/tree/gocollaborate-ui)
-- [Change Logs](https://github.com/HastingsYoung/GoCollaborate/blob/master/CHANGELOG.md)
+- [Change Logs](https://github.com/GoCollaborate/src/blob/master/CHANGELOG.md)
+- [Tests](https://github.com/GoCollaborate/tests)
 ## Quick Start
 ### Installation
 ```sh
