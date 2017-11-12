@@ -2,9 +2,9 @@ package worker
 
 import (
 	"fmt"
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/store"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/logger"
+	"github.com/GoCollaborate/src/store"
 )
 
 type Worker struct {

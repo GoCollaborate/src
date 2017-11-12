@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"flag"
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 	"path/filepath"
 	"strconv"
 	"sync"

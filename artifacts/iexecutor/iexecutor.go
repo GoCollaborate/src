@@ -1,7 +1,7 @@
 package iexecutor
 
 import (
-	"github.com/GoCollaborate/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/task"
 )
 
 type IExecutor interface {

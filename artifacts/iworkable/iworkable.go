@@ -1,8 +1,8 @@
 package iworkable
 
 import (
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/artifacts/worker"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/worker"
 	"sync"
 )
 

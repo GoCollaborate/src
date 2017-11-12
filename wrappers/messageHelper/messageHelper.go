@@ -1,9 +1,9 @@
 package messageHelper
 
 import (
-	"github.com/GoCollaborate/artifacts/iremote"
-	"github.com/GoCollaborate/artifacts/message"
-	"github.com/GoCollaborate/store"
+	"github.com/GoCollaborate/src/artifacts/iremote"
+	"github.com/GoCollaborate/src/artifacts/message"
+	"github.com/GoCollaborate/src/store"
 )
 
 func Exchange(in *message.CardMessage, out *message.CardMessage) error {

@@ -1,9 +1,9 @@
 package collaborator
 
 import (
-	"github.com/GoCollaborate/artifacts/message"
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/src/artifacts/message"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/logger"
 	"net/rpc"
 )
 

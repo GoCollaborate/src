@@ -1,11 +1,11 @@
 package collaborator
 
 import (
-	"github.com/GoCollaborate/artifacts/iworkable"
-	"github.com/GoCollaborate/artifacts/message"
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/wrappers/messageHelper"
+	"github.com/GoCollaborate/src/artifacts/iworkable"
+	"github.com/GoCollaborate/src/artifacts/message"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/logger"
+	"github.com/GoCollaborate/src/wrappers/messageHelper"
 )
 
 type LocalMethods struct {

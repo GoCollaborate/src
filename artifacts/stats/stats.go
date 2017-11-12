@@ -1,7 +1,7 @@
 package stats
 
 import (
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 	"sync"
 	"time"
 )

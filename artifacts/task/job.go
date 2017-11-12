@@ -1,7 +1,7 @@
 package task
 
 import (
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 	"github.com/satori/go.uuid"
 	"sort"
 )

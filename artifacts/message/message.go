@@ -1,10 +1,10 @@
 package message
 
 import (
-	"github.com/GoCollaborate/artifacts/card"
-	"github.com/GoCollaborate/artifacts/digest"
-	"github.com/GoCollaborate/artifacts/iremote"
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/artifacts/card"
+	"github.com/GoCollaborate/src/artifacts/digest"
+	"github.com/GoCollaborate/src/artifacts/iremote"
+	"github.com/GoCollaborate/src/constants"
 	"time"
 )
 

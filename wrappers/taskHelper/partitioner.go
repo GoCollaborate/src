@@ -1,7 +1,7 @@
 package taskHelper
 
 import (
-	"github.com/GoCollaborate/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/task"
 )
 
 // slice the data source of the map into N separate segments

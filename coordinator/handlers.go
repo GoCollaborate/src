@@ -1,10 +1,10 @@
 package coordinator
 
 import (
-	"github.com/GoCollaborate/artifacts/card"
-	"github.com/GoCollaborate/artifacts/restful"
-	"github.com/GoCollaborate/artifacts/service"
-	"github.com/GoCollaborate/wrappers/restfulHelper"
+	"github.com/GoCollaborate/src/artifacts/card"
+	"github.com/GoCollaborate/src/artifacts/restful"
+	"github.com/GoCollaborate/src/artifacts/service"
+	"github.com/GoCollaborate/src/wrappers/restfulHelper"
 	"github.com/gorilla/mux"
 	"io/ioutil"
 	"net/http"

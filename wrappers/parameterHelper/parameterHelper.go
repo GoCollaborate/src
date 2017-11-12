@@ -1,7 +1,7 @@
 package parameterHelper
 
 import (
-	"github.com/GoCollaborate/artifacts/parameter"
+	"github.com/GoCollaborate/src/artifacts/parameter"
 )
 
 func UnmarshalParameters(original []interface{}) []parameter.Parameter {

@@ -1,7 +1,7 @@
 package message
 
 import (
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 )
 
 type CardMessageFuture struct {

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 	"io"
 	"net/http"
 	"os"

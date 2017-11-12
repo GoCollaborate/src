@@ -1,7 +1,7 @@
 package taskHelper
 
 import (
-	"github.com/GoCollaborate/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/task"
 )
 
 type mapop struct {

@@ -1,8 +1,8 @@
 package cardHelper
 
 import (
-	"github.com/GoCollaborate/artifacts/card"
-	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/src/artifacts/card"
+	"github.com/GoCollaborate/src/logger"
 )
 
 func UnmarshalCards(original []interface{}) []card.Card {

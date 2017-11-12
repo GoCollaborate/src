@@ -1,8 +1,8 @@
 package utils
 
 import (
-	"github.com/GoCollaborate/artifacts/stats"
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/artifacts/stats"
+	"github.com/GoCollaborate/src/constants"
 	"github.com/gorilla/mux"
 	"golang.org/x/time/rate"
 	"io"

@@ -2,9 +2,9 @@ package restfulHelper
 
 import (
 	"encoding/json"
-	"github.com/GoCollaborate/artifacts/restful"
-	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/utils"
+	"github.com/GoCollaborate/src/artifacts/restful"
+	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/utils"
 	"io"
 	"net/http"
 )

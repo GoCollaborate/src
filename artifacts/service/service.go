@@ -1,9 +1,9 @@
 package service
 
 import (
-	"github.com/GoCollaborate/artifacts/card"
-	"github.com/GoCollaborate/artifacts/parameter"
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/artifacts/card"
+	"github.com/GoCollaborate/src/artifacts/parameter"
+	"github.com/GoCollaborate/src/constants"
 	"math/rand"
 	"sync"
 	"time"

@@ -1,14 +1,14 @@
 package store
 
 import (
-	"github.com/GoCollaborate/artifacts/iexecutor"
-	"github.com/GoCollaborate/artifacts/imapper"
-	"github.com/GoCollaborate/artifacts/ireducer"
-	"github.com/GoCollaborate/artifacts/message"
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/logger"
-	"github.com/GoCollaborate/utils"
+	"github.com/GoCollaborate/src/artifacts/iexecutor"
+	"github.com/GoCollaborate/src/artifacts/imapper"
+	"github.com/GoCollaborate/src/artifacts/ireducer"
+	"github.com/GoCollaborate/src/artifacts/message"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/logger"
+	"github.com/GoCollaborate/src/utils"
 	"github.com/gorilla/mux"
 	"golang.org/x/time/rate"
 	"net/http"

@@ -1,7 +1,7 @@
 package digest
 
 import (
-	"github.com/GoCollaborate/artifacts/card"
+	"github.com/GoCollaborate/src/artifacts/card"
 )
 
 type Digest struct {

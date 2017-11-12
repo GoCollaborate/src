@@ -1,7 +1,7 @@
 package iremote
 
 import (
-	"github.com/GoCollaborate/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/task"
 )
 
 type ICollaboratable interface {

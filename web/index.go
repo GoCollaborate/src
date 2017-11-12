@@ -1,7 +1,7 @@
 package web
 
 import (
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 	"html/template"
 	"net/http"
 	"path/filepath"

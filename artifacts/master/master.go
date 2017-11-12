@@ -2,9 +2,9 @@ package master
 
 import (
 	"errors"
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/artifacts/worker"
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/worker"
+	"github.com/GoCollaborate/src/constants"
 	"strconv"
 	"time"
 )

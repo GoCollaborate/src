@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/GoCollaborate/constants"
+	"github.com/GoCollaborate/src/constants"
 	"github.com/fatih/structs"
 	"reflect"
 	"runtime"

@@ -183,6 +183,6 @@ const (
 var (
 	ProjectDir     = ""
 	ProjectUnixDir = ""
-	LibDir         = "github.com/GoCollaborate/"
-	LibUnixDir     = os.Getenv("GOPATH") + "/src/github.com/GoCollaborate/"
+	LibDir         = "github.com/GoCollaborate/src/"
+	LibUnixDir     = os.Getenv("GOPATH") + "/src/github.com/GoCollaborate/src/"
 )

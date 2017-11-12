@@ -1,7 +1,7 @@
 package service
 
 import (
-	"github.com/GoCollaborate/artifacts/restful"
+	"github.com/GoCollaborate/src/artifacts/restful"
 )
 
 type QueryResource struct {

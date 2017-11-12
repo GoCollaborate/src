@@ -2,9 +2,9 @@ package parameter
 
 import (
 	"encoding/json"
-	"github.com/GoCollaborate/artifacts/restful"
-	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/logger"
+	"github.com/GoCollaborate/src/artifacts/restful"
+	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/logger"
 )
 
 type Parameter struct {

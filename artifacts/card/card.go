@@ -1,7 +1,7 @@
 package card
 
 import (
-	"github.com/GoCollaborate/utils"
+	"github.com/GoCollaborate/src/utils"
 	"strconv"
 )
 

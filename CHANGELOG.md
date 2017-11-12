@@ -1,6 +1,10 @@
 # Change Logs
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
+### 0.3.x
+#### 0.3.0
+- Add Travis CI support
+- The previous repository was deprecated, now please refer to [https://github.com/GoCollaborate/src](https://github.com/GoCollaborate/src)
 ### 0.2.x
 #### 0.2.9
 - Optimize UI

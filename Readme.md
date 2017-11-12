@@ -20,7 +20,7 @@ Please check out most recent [API](https://hastingsyoung.gitbooks.io/gocollabora
 ## Quick Start
 ### Installation
 ```sh
-go get -u github.com/GoCollaborate
+go get -u github.com/GoCollaborate/src
 ```
 ### Create Project
 ```sh
@@ -81,7 +81,7 @@ package main
 
 import (
 	"./core"
-	"github.com/GoCollaborate"
+	"github.com/GoCollaborate/src"
 )
 
 func main() {
@@ -101,8 +101,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/GoCollaborate/artifacts/task"
-	"github.com/GoCollaborate/wrappers/taskHelper"
+	"github.com/GoCollaborate/src/artifacts/task"
+	"github.com/GoCollaborate/src/wrappers/taskHelper"
 	"net/http"
 )
 

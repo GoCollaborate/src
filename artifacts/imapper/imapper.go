@@ -1,7 +1,7 @@
 package imapper
 
 import (
-	"github.com/GoCollaborate/artifacts/task"
+	"github.com/GoCollaborate/src/artifacts/task"
 )
 
 type IMapper interface {

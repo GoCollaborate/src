@@ -1,8 +1,8 @@
 package task
 
 import (
-	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/utils"
+	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/utils"
 	"sync"
 )
 

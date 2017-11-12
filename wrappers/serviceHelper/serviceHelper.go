@@ -3,11 +3,11 @@ package serviceHelper
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/GoCollaborate/artifacts/card"
-	"github.com/GoCollaborate/artifacts/restful"
-	"github.com/GoCollaborate/artifacts/service"
-	"github.com/GoCollaborate/constants"
-	"github.com/GoCollaborate/utils"
+	"github.com/GoCollaborate/src/artifacts/card"
+	"github.com/GoCollaborate/src/artifacts/restful"
+	"github.com/GoCollaborate/src/artifacts/service"
+	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/utils"
 	"io"
 	"net/http"
 )
