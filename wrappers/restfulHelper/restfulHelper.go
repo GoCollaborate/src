@@ -14,8 +14,8 @@ func SendErrorWith(w http.ResponseWriter, errPayload restful.ErrorPayload, statu
 	if err != nil {
 		return err
 	}
-	utils.AdaptHTTPWithStatus(w, status)
 	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
+	utils.AdaptHTTPWithStatus(w, status)
 	io.WriteString(w, string(mal))
 	return nil
 }
