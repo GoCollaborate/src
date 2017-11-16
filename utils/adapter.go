@@ -11,10 +11,10 @@ import (
 )
 
 func AdaptRouterToDebugMode(router *mux.Router) *mux.Router {
-	router.HandleFunc("/debug/pprof/", pprof.Index)
-	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	router.HandleFunc("/debug/pprof/", pprof.Index).Name("Debug Index")
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline).Name("Debug Commandline")
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile).Name("Debug Profiling")
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol).Name("Debug Symbol")
 
 	router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
 	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
@@ -41,7 +41,7 @@ func AdaptHTTPWithHeader(w http.ResponseWriter,
 func AdaptLimiter(lim *rate.Limiter, f func(w http.ResponseWriter, r *http.Request)) func(w http.ResponseWriter, r *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if !lim.Allow() {
-			AdaptHTTPWithStatus(w, http.StatusUnprocessableEntity)
+			AdaptHTTPWithStatus(w, http.StatusTooManyRequests)
 			io.WriteString(w, "Job request exceeds the maximum handling limit, please try later.\n")
 			return
 		}

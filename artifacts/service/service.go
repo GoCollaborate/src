@@ -12,6 +12,7 @@ import (
 type Service struct {
 	ServiceID   string                `json:"serviceid,omitempty"`
 	Description string                `json:"description"`
+	Methods     []string              `json:"methods"`
 	Parameters  []parameter.Parameter `json:"parameters"`
 	RegList     []card.Card           `json:"registers"`
 	// a map of last heartbeat timestamps, eact key corresponds to one particular card full endpoint
@@ -30,6 +31,7 @@ type Service struct {
 func NewService() *Service {
 	return &Service{
 		Description:     "",
+		Methods:         []string{},
 		Parameters:      []parameter.Parameter{},
 		RegList:         []card.Card{},
 		Heartbeats:      map[string]int64{},
@@ -44,6 +46,7 @@ func NewService() *Service {
 func NewServiceFrom(from *Service) *Service {
 	return &Service{
 		Description:     from.Description,
+		Methods:         from.Methods,
 		Parameters:      from.Parameters,
 		RegList:         from.RegList,
 		Heartbeats:      map[string]int64{},

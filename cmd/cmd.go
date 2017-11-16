@@ -34,8 +34,8 @@ func InitCmdEnv() *SysVars {
 	dsPath := flag.String("ds", constants.DefaultDataStorePath, "define the path to store GoCollaborate data files")
 	mxRoutines := flag.Int("mxrt", constants.DefaultWorkerPerMaster, "define the maximum number of routines working simultaneously to consume TASK, we recommend the number not to be greater than 1000")
 	cleanHis := flag.Bool("clean", constants.DefaultNotCleanHistory, "define if the program should clean previous history while launching up (note: the cleaning is irrecoverable!)")
-	numWorkers := flag.Int("numwks", constants.DefaultWorkerPerMaster, "define the number of WORKER created for each MASTER)")
-	numGossip := flag.Int("numgossip", constants.DefaultGossipNum, "define the number of nodes to spread to while exchanging cards)")
+	numWorkers := flag.Int("numwks", constants.DefaultWorkerPerMaster, "define the number of WORKER created for each MASTER")
+	numGossip := flag.Int("numgossip", constants.DefaultGossipNum, "define the number of nodes to spread to while exchanging cards")
 	caseID := flag.String("cid", constants.DefaultCaseID, "define the identifier of CASE cluster, only message within the same CASE cluster will be processed by each COLLABORATOR")
 	flag.Parse()
 	if !flag.Parsed() {
@@ -72,30 +72,29 @@ func Vars() *SysVars {
 }
 
 func VarsJSONArrayStr() string {
-
 	return `{
 		"headers":["CaseID",
-		"ServerMode",
-		"DebugMode",
-		"Port",
-		"CasePath",
-		"LogPath",
-		"DataStorePath",
-		"MaxRoutines",
-		"CleanHistory",
-		"WorkerPerMaster",
-		"GossipNum"],
+					"ServerMode",
+					"DebugMode",
+					"Port",
+					"CasePath",
+					"LogPath",
+					"DataStorePath",
+					"MaxRoutines",
+					"CleanHistory",
+					"WorkerPerMaster",
+					"GossipNum"],
 		"data":[["CaseID","string","` + singleton.CaseID + `"],
-			["ServerMode","string","` + singleton.ServerMode + `"],
-			["DebugMode","bool",` + strconv.FormatBool(singleton.DebugMode) + `],
-			["Port","int",` + strconv.Itoa(singleton.Port) + `],
-			["CasePath","string","` + singleton.CasePath + `"],
-			["LogPath","string","` + singleton.LogPath + `"],
-			["DataStorePath","string","` + singleton.DataStorePath + `"],
-			["MaxRoutines","int",` + strconv.Itoa(singleton.MaxRoutines) + `],
-			["CleanHistory","bool",` + strconv.FormatBool(singleton.CleanHistory) + `],
-			["WorkerPerMaster","int",` + strconv.Itoa(singleton.WorkerPerMaster) + `],
-			["GossipNum","int",` + strconv.Itoa(singleton.GossipNum) + `]]}`
+				["ServerMode","string","` + singleton.ServerMode + `"],
+				["DebugMode","bool",` + strconv.FormatBool(singleton.DebugMode) + `],
+				["Port","int",` + strconv.Itoa(singleton.Port) + `],
+				["CasePath","string","` + singleton.CasePath + `"],
+				["LogPath","string","` + singleton.LogPath + `"],
+				["DataStorePath","string","` + singleton.DataStorePath + `"],
+				["MaxRoutines","int",` + strconv.Itoa(singleton.MaxRoutines) + `],
+				["CleanHistory","bool",` + strconv.FormatBool(singleton.CleanHistory) + `],
+				["WorkerPerMaster","int",` + strconv.Itoa(singleton.WorkerPerMaster) + `],
+				["GossipNum","int",` + strconv.Itoa(singleton.GossipNum) + `]]}`
 }
 
 func Init() {

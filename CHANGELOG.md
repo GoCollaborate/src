@@ -2,6 +2,11 @@
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.3.x
+#### 0.3.2
+- Add versioning for coordinator
+#### 0.3.1
+- Add "methods" field to service response
+- Change rate limiting response header: 422 -> 429 Too Many Requests
 #### 0.3.0
 - Add Travis CI support
 - The previous repository was deprecated, now please refer to [https://github.com/GoCollaborate/src](https://github.com/GoCollaborate/src)

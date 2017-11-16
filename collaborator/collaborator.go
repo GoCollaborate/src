@@ -201,7 +201,7 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 		services = map[string]*service.Service{}
 	)
 
-	resp, err := http.Get("http://" + cdntIP + "/cluster/" + clbt.CardCase.CaseID + "/services")
+	resp, err := http.Get("http://" + cdntIP + "/v1/cluster/" + clbt.CardCase.CaseID + "/services")
 	if err != nil {
 		return services, err
 	}
@@ -222,6 +222,7 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 		}
 		svr := service.NewService()
 		svr.Description = route.GetName()
+		svr.Methods, _ = route.GetMethods()
 		svr.RegList = append(svr.RegList, card.Card{
 			IP:    clbt.CardCase.Local.IP,
 			Port:  clbt.CardCase.Local.Port,
@@ -238,12 +239,12 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 	}
 
 	// walk through services and get them created on the coordinator
-	resp2, err := http.Post("http://"+cdntIP+"/services", "application/json", reader)
+	resp2, err := http.Post("http://"+cdntIP+"/v1/services", "application/json", reader)
 	if err != nil {
 		return services, err
 	}
 
-	_, err = http.Post("http://"+cdntIP+"/cluster/"+clbt.CardCase.CaseID+"/services", "application/json", resp2.Body)
+	_, err = http.Post("http://"+cdntIP+"/v1/cluster/"+clbt.CardCase.CaseID+"/services", "application/json", resp2.Body)
 	if err != nil {
 		return services, err
 	}
@@ -259,7 +260,7 @@ func (clbt *Collaborator) HeartBeat(services map[string]*service.Service) {
 		panic(err)
 	}
 
-	http.Post("http://"+cdntIP+"/services/heartbeat", "application/json", reader)
+	http.Post("http://"+cdntIP+"/v1/services/heartbeat", "application/json", reader)
 }
 
 // Start handling server routes.

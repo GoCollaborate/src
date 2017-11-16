@@ -55,7 +55,7 @@ func (t *taskPriority) GetPriority() taskPriority {
 	return *t
 }
 
-func (cg *Collection) Append(cs ...Countable) *Collection {
+func (cg *Collection) Append(cs ...interface{}) *Collection {
 	*cg = append(*cg, cs...)
 	return cg
 }
@@ -68,7 +68,7 @@ func (cg *Collection) Length() int {
 	return len(*cg)
 }
 
-func (cg *Collection) Filter(f func(Countable) bool) *Collection {
+func (cg *Collection) Filter(f func(interface{}) bool) *Collection {
 	var (
 		clct = Collection{}
 	)
@@ -94,6 +94,4 @@ type Task struct {
 	Stage      int
 }
 
-type Collection []Countable
-
-type Countable interface{}
+type Collection []interface{}
