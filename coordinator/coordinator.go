@@ -114,7 +114,6 @@ func (cdnt *Coordinator) CreateService(w http.ResponseWriter, bytes []byte) erro
 			id := utils.RandStringBytesMaskImprSrc(ServiceLength)
 			svr := service.NewServiceFrom(&dat.Attributes)
 			svr.ServiceID = id
-			svr.LastAssignedTime = int64(0)
 			cdnt.Services[id] = svr
 			dat.ID = id
 			dat.Attributes = *svr

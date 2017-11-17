@@ -4,6 +4,8 @@
 ### 0.3.x
 #### 0.3.2
 - Add versioning for coordinator
+- Support more load-balancing algorithms
+- Optimize error responses
 #### 0.3.1
 - Add "methods" field to service response
 - Change rate limiting response header: 422 -> 429 Too Many Requests

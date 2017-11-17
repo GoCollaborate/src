@@ -8,7 +8,7 @@ const (
 	LBModeRandom               // assign tasks as per weighted probability
 	LBModeLeastActive          // assign tasks to active responders
 	LBModeRoundRobin           // assign tasks sequentially based on the order of collaborator
-	LBModeIPHash               // assign tasks based on the hash value of subscriber IP
+	LBModeTokenHash            // assign tasks based on the hash value of subscriber token
 )
 
 type Mode int

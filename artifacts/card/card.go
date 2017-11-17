@@ -14,6 +14,13 @@ type Card struct {
 	Seed  bool   `json:"seed,omitempty"`
 }
 
+func (c *Card) IsInitialized() bool {
+	if len(c.IP) > 0 {
+		return true
+	}
+	return false
+}
+
 func (c *Card) GetFullIP() string {
 	return c.IP + ":" + strconv.Itoa(c.Port)
 }

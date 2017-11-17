@@ -4,6 +4,7 @@ import (
 	"github.com/GoCollaborate/src/artifacts/card"
 	"github.com/GoCollaborate/src/artifacts/parameter"
 	"github.com/GoCollaborate/src/constants"
+	"hash/fnv"
 	"math/rand"
 	"sync"
 	"time"
@@ -16,45 +17,52 @@ type Service struct {
 	Parameters  []parameter.Parameter `json:"parameters"`
 	RegList     []card.Card           `json:"registers"`
 	// a map of last heartbeat timestamps, eact key corresponds to one particular card full endpoint
-	Heartbeats       map[string]int64 `json:"heartbeats,omitempty"`
-	SbscrbList       []string         `json:"subscribers"`  // subscriber tokens
-	Dependencies     []string         `json:"dependencies"` // dependent ServiceIDs
-	Mode             Mode             `json:"mode,omitempty"`
-	LoadBalanceMode  Mode             `json:"load_balance_mode,omitemtpy"`
-	Version          string           `json:"version"`
-	PlatformVersion  string           `json:"platform_version"`
-	LastAssignedTo   card.Card        `json:"last_assigned_to,omitempty"`
-	LastAssignedTime int64            `json:"last_assigned_time,omitempty"`
-	serviceLock      sync.Mutex       `json:"-"`
+	Heartbeats        map[string]int64 `json:"heartbeats,omitempty"`
+	SbscrbList        []string         `json:"subscribers"`  // subscriber tokens
+	Dependencies      []string         `json:"dependencies"` // dependent ServiceIDs
+	Mode              Mode             `json:"mode,omitempty"`
+	LoadBalanceMode   Mode             `json:"load_balance_mode,omitemtpy"`
+	Version           string           `json:"version"`
+	PlatformVersion   string           `json:"platform_version"`
+	LastAssignedTo    card.Card        `json:"last_assigned_to,omitempty"`
+	LastAssignedTime  int64            `json:"last_assigned_time,omitempty"`
+	LastAssignedIndex uint32           `json:"-"`
+	serviceLock       sync.Mutex       `json:"-"`
 }
 
 func NewService() *Service {
 	return &Service{
-		Description:     "",
-		Methods:         []string{},
-		Parameters:      []parameter.Parameter{},
-		RegList:         []card.Card{},
-		Heartbeats:      map[string]int64{},
-		SbscrbList:      []string{},
-		Dependencies:    []string{},
-		Version:         "1.0",
-		PlatformVersion: "golang1.8.1",
-		serviceLock:     sync.Mutex{},
+		Description:      "",
+		Methods:          []string{},
+		Parameters:       []parameter.Parameter{},
+		RegList:          []card.Card{},
+		Heartbeats:       map[string]int64{},
+		SbscrbList:       []string{},
+		Dependencies:     []string{},
+		Mode:             ClbtModeNormal,
+		LoadBalanceMode:  LBModeRandom,
+		Version:          "1.0",
+		PlatformVersion:  "golang1.8.1",
+		LastAssignedTime: int64(0),
+		serviceLock:      sync.Mutex{},
 	}
 }
 
 func NewServiceFrom(from *Service) *Service {
 	return &Service{
-		Description:     from.Description,
-		Methods:         from.Methods,
-		Parameters:      from.Parameters,
-		RegList:         from.RegList,
-		Heartbeats:      map[string]int64{},
-		SbscrbList:      from.SbscrbList,
-		Dependencies:    from.Dependencies,
-		Version:         from.Version,
-		PlatformVersion: from.PlatformVersion,
-		serviceLock:     sync.Mutex{},
+		Description:      from.Description,
+		Methods:          from.Methods,
+		Parameters:       from.Parameters,
+		RegList:          from.RegList,
+		Heartbeats:       map[string]int64{},
+		SbscrbList:       from.SbscrbList,
+		Dependencies:     from.Dependencies,
+		Mode:             from.Mode,
+		LoadBalanceMode:  from.LoadBalanceMode,
+		Version:          from.Version,
+		PlatformVersion:  from.PlatformVersion,
+		LastAssignedTime: int64(0),
+		serviceLock:      sync.Mutex{},
 	}
 }
 
@@ -143,19 +151,41 @@ func (s *Service) UnSubscribe(token string) error {
 }
 
 func (s *Service) Query(token string) (*card.Card, error) {
+	if len(s.RegList) < 1 {
+		return nil, constants.ErrNoRegister
+	}
+
 	for _, x := range s.SbscrbList {
 		if x == token {
-			return s.loadBalanceRoll(), nil
+			return s.loadBalanceRoll(token)
 		}
 	}
-	return nil, constants.ErrNoRegister
+
+	return nil, constants.ErrNoSubscriber
 }
 
-func (s *Service) loadBalanceRoll() *card.Card {
+func (s *Service) loadBalanceRoll(token string) (*card.Card, error) {
+	var last_assigned_to card.Card
+	var last_assigned_index = s.LastAssignedIndex
+	var length = len(s.RegList)
+
 	switch s.LoadBalanceMode {
-	default:
-		return &s.RegList[rand.Intn(len(s.RegList))]
+	case LBModeRoundRobin:
+		last_assigned_index = (last_assigned_index + 1) % uint32(length)
+	case LBModeTokenHash:
+		h := fnv.New32a()
+		h.Write([]byte(token))
+		last_assigned_index = h.Sum32() % uint32(length)
 	}
+
+	if !s.LastAssignedTo.IsInitialized() {
+		last_assigned_index = rand.Uint32() % uint32(length)
+	}
+
+	last_assigned_to = s.RegList[last_assigned_index]
+	s.LastAssignedTo = last_assigned_to
+	s.LastAssignedIndex = last_assigned_index
+	return &last_assigned_to, nil
 }
 
 func (s *Service) UnSubscribeAll() error {
