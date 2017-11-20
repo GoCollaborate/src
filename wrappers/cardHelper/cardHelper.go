@@ -23,12 +23,12 @@ func UnmarshalCards(original []interface{}) []card.Card {
 			seed = oo["seed"].(bool)
 		}
 
-		cards = append(cards, card.Card{oo["ip"].(string), int(oo["port"].(float64)), oo["alive"].(bool), api, seed})
+		cards = append(cards, card.Card{oo["ip"].(string), int32(oo["port"].(float64)), oo["alive"].(bool), api, seed})
 	}
 	return cards
 }
 
-func RangePrint(cards map[string]card.Card) {
+func RangePrint(cards map[string]*card.Card) {
 	for _, c := range cards {
 		var (
 			alive string

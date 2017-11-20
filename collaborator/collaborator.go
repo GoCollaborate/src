@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/GoCollaborate/src/artifacts/card"
 	"github.com/GoCollaborate/src/artifacts/iexecutor"
-	"github.com/GoCollaborate/src/artifacts/iremote"
 	"github.com/GoCollaborate/src/artifacts/iworkable"
 	"github.com/GoCollaborate/src/artifacts/message"
 	"github.com/GoCollaborate/src/artifacts/service"
@@ -20,9 +19,7 @@ import (
 	"github.com/GoCollaborate/src/wrappers/messageHelper"
 	"github.com/GoCollaborate/src/wrappers/serviceHelper"
 	"github.com/gorilla/mux"
-	"net"
 	"net/http"
-	"net/rpc"
 	"strconv"
 	"time"
 )
@@ -44,7 +41,7 @@ func NewCollaborator() *Collaborator {
 }
 
 func newCase() *Case {
-	return &Case{cmd.Vars().CaseID, &Exposed{make(map[string]card.Card), time.Now().Unix()}, &Reserved{*card.Default(), card.Card{}}}
+	return &Case{cmd.Vars().CaseID, &Exposed{make(map[string]*card.Card), time.Now().Unix()}, &Reserved{*card.Default(), card.Card{}}}
 }
 
 // Join a master to the collaborator network.
@@ -57,7 +54,7 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 	}
 
 	// update if the read in timestamp is later than now
-	if now := time.Now().Unix(); clbt.CardCase.Digest().TimeStamp() > now {
+	if now := time.Now().Unix(); clbt.CardCase.GetDigest().GetTimeStamp() > now {
 		clbt.CardCase.TimeStamp = now
 		logger.LogWarning("The read in timestamp conflicts with local clock")
 		logger.GetLoggerInstance().LogNormal("The read in timestamp conflicts with local clock")
@@ -70,7 +67,7 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 
 	ip := utils.GetLocalIP()
 
-	cards := clbt.CardCase.Digest().Cards()
+	cards := clbt.CardCase.GetDigest().GetCards()
 
 	logger.LogNormal("Cards:")
 	logger.GetLoggerInstance().LogNormal("Cards:")
@@ -80,8 +77,7 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 
 	// update if self does not exist
 	if card, ok := clbt.CardCase.Cards[local.GetFullIP()]; !ok || !card.IsEqualTo(&local) {
-
-		clbt.CardCase.Cards[local.GetFullIP()] = local
+		clbt.CardCase.Cards[local.GetFullIP()] = &local
 		clbt.CardCase.Stamp()
 	}
 
@@ -89,12 +85,13 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 
 	logger.LogNormal("Local:")
 	logger.GetLoggerInstance().LogNormal("Local:")
-	cardHelper.RangePrint(map[string]card.Card{local.GetFullIP(): local})
+	cardHelper.RangePrint(map[string]*card.Card{local.GetFullIP(): &local})
 
 	// start active message handler
 	clbt.CardCase.Action()
 
-	clbt.launchServer()
+	// launch RPC server
+	LaunchServer(":"+strconv.Itoa(int(clbt.CardCase.Local.GetPort())), clbt.Workable)
 
 	go func() {
 		for {
@@ -124,8 +121,8 @@ func (clbt *Collaborator) Catchup() {
 	var (
 		c = &clbt.CardCase
 
-		dgst  = c.Digest()
-		cards = dgst.Cards()
+		dgst  = c.GetDigest()
+		cards = dgst.GetCards()
 
 		max  = cmd.Vars().GossipNum
 		done = 0
@@ -139,30 +136,27 @@ func (clbt *Collaborator) Catchup() {
 		}
 
 		if e.Alive && (!e.IsEqualTo(&c.Local)) {
-			client, err := launchClient(e.IP, e.Port)
+			client, err := NewServiceClientStub(e.IP, e.Port)
 
 			if err != nil {
 				logger.LogWarning("Connection failed while bridging")
 				logger.GetLoggerInstance().LogWarning("Connection failed while bridging")
-				override := c.Cards[key]
-				override.Alive = false
-				c.Cards[key] = override
+				c.Cards[key].SetAlive(false)
 				c.writeStream()
 				continue
 			}
 
 			from := c.Local.GetFullExposureCard()
 			to := e
-			var in *message.CardMessage = message.NewCardMessageWithOptions(c.Cluster(), from, to, dgst.Cards(), dgst.TimeStamp(), iremote.MsgTypeSync)
+			var in *message.CardMessage = message.NewCardMessageWithOptions(c.GetCluster(), &from, to, dgst.GetCards(), dgst.GetTimeStamp(), message.CardMessage_SYNC)
 			var out *message.CardMessage = message.NewCardMessage()
 			var out2 *message.CardMessage = message.NewCardMessage()
-			var out3 *message.CardMessage = message.NewCardMessage()
 			// first exchange
-			err = client.Exchange(in, out)
+			out, err = client.Exchange(in)
 			// local update exchange
-			err = messageHelper.Exchange(out, out2)
+			out2, err = messageHelper.Exchange(out)
 			// second exchange
-			err = client.Exchange(out2, out3)
+			_, err = client.Exchange(out2)
 			if err != nil {
 				logger.LogWarning("Calling method failed while bridging")
 				logger.GetLoggerInstance().LogWarning("Calling method failed while bridging")
@@ -181,7 +175,7 @@ func (clbt *Collaborator) Catchup() {
 // Clean up the case, release terminated servers.
 func (clbt *Collaborator) Clean() {
 
-	cards := clbt.CardCase.Digest().Cards()
+	cards := clbt.CardCase.GetDigest().GetCards()
 
 	for k, c := range cards {
 		if !c.Alive {
@@ -189,7 +183,7 @@ func (clbt *Collaborator) Clean() {
 		}
 	}
 
-	cards = clbt.CardCase.Digest().Cards()
+	cards = clbt.CardCase.GetDigest().GetCards()
 
 	cardHelper.RangePrint(cards)
 }
@@ -299,14 +293,14 @@ func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 	return router
 }
 
-// Distribute tasks to peer servers, this is a synchronized function.
-func (clbt *Collaborator) DistributeSync(sources map[int]*task.Task) (map[int]*task.Task, error) {
+// Distribute tasks to peer servers, the tasks will be sequentially sent.
+func (clbt *Collaborator) DistributeSeq(sources map[int]*task.Task) (map[int]*task.Task, error) {
 
 	var (
 		cc                         = clbt.CardCase
-		dgst                       = cc.Digest()
+		dgst                       = cc.GetDigest()
 		l1                         = len(sources)
-		l2                         = len(dgst.Cards())
+		l2                         = len(dgst.GetCards())
 		result  map[int]*task.Task = make(map[int]*task.Task)
 		counter int                = 0
 	)
@@ -333,7 +327,7 @@ func (clbt *Collaborator) DistributeSync(sources map[int]*task.Task) (map[int]*t
 		}
 
 		// publish to remote
-		client, err := launchClient(e.IP, e.Port)
+		service, err := NewServiceClientStub(e.IP, e.Port)
 		if err != nil {
 			// re-publish to local if failed
 			logger.LogWarning("Connection failed while connecting")
@@ -349,10 +343,9 @@ func (clbt *Collaborator) DistributeSync(sources map[int]*task.Task) (map[int]*t
 		// copy a pointer for concurrent map access
 		s := make(map[int]*task.Task)
 		s[k] = v
-		chs[k] = client.DistributeSync(&s, &s)
+		chs[k] = service.DistributeAsync(&s)
 	}
 
-	// Wait for responses
 	for {
 		for i, ch := range chs {
 			select {
@@ -370,39 +363,6 @@ func (clbt *Collaborator) DistributeSync(sources map[int]*task.Task) (map[int]*t
 	logger.LogProgress("All task responses collected")
 	logger.GetLoggerInstance().LogProgress("All task responses collected")
 	return result, nil
-}
-
-func registerRemote(server *rpc.Server, remote RemoteMethods) {
-	server.RegisterName("RemoteMethods", remote)
-}
-
-func (c *Collaborator) launchServer() {
-	go func() {
-		methods := NewLocalMethods(c.Workable)
-		server := rpc.NewServer()
-		registerRemote(server, methods)
-		// debug setup for regcenter to check services alive
-		server.HandleHTTP("/", "debug")
-		l, e := net.Listen("tcp", ":"+strconv.Itoa(c.CardCase.Local.Port))
-		if e != nil {
-			logger.LogError("Listen Error:", e)
-			logger.GetLoggerInstance().LogError("Listen Error:", e)
-		}
-		http.Serve(l, nil)
-	}()
-	return
-}
-
-func launchClient(endpoint string, port int) (*RPCClient, error) {
-	clientContact := card.Card{endpoint, port, true, "", false}
-	client, err := rpc.DialHTTP("tcp", clientContact.GetFullIP())
-	if err != nil {
-		logger.LogError("Dialing:", err)
-		logger.GetLoggerInstance().LogError("Dialing:", err)
-		return &RPCClient{}, err
-	}
-	cWrapper := &RPCClient{Client: client}
-	return cWrapper, nil
 }
 
 // Handle local Job routes.
@@ -560,7 +520,7 @@ func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []s
 			if err != nil {
 				return err
 			}
-			maps, err = clbt.DistributeSync(maps)
+			maps, err = clbt.DistributeSeq(maps)
 			// reducer
 		case constants.ExecutorTypeReducer:
 			maps, err = exe.Execute(maps)

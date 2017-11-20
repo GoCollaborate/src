@@ -1,6 +1,11 @@
 # Change Logs
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
+### 0.4.x
+#### 0.4.0
+- Update project distributed protocol to protobuf
+- Update RPC framework to gRPC
+- Extend automatic retry timeout interval
 ### 0.3.x
 #### 0.3.2
 - Add versioning for coordinator

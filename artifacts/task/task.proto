@@ -1,0 +1,10 @@
+
+syntax = "proto3";
+
+package task;
+
+option go_package = "github.com/GoCollaborate/src/artifacts/task";
+
+message TaskPayload {
+	bytes payload = 1;
+}

@@ -135,7 +135,7 @@ func Run(vars ...*cmd.SysVars) {
 		clbt.Handle(router)
 
 	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		cdnt := coordinator.GetCoordinatorInstance(runVars.Port)
+		cdnt := coordinator.GetCoordinatorInstance(int32(runVars.Port))
 		cdnt.Handle(router)
 	}
 

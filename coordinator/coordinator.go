@@ -27,7 +27,7 @@ type Coordinator struct {
 	Modified int64                          `json:"modified"` // time in epoch milliseconds indicating when the registry center was last modified
 	Services map[string]*service.Service    `json:"services"` // a map of ServiceID to services
 	Clusters map[string]map[string]struct{} `json:"clusters"` // a set of cluster services
-	Port     int                            `json:"port"`
+	Port     int32                          `json:"port"`
 	GoVer    string                         `json:"gover"`
 }
 

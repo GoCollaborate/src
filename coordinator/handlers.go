@@ -18,7 +18,7 @@ var singleton *Coordinator
 var once sync.Once
 
 // singleton instance of registry center
-func GetCoordinatorInstance(port int) *Coordinator {
+func GetCoordinatorInstance(port int32) *Coordinator {
 	once.Do(func() {
 		singleton = &Coordinator{time.Now().Unix(), time.Now().Unix(), map[string]*service.Service{}, map[string]map[string]struct{}{}, port, runtime.Version()}
 	})
@@ -118,7 +118,7 @@ func HandlerFuncDeRegisterService(w http.ResponseWriter, r *http.Request) {
 	srvID := vars["srvid"]
 	ip := vars["ip"]
 	port, _ := strconv.Atoi(vars["port"])
-	singleton.DeRegisterService(w, r, srvID, &card.Card{ip, port, true, "", false})
+	singleton.DeRegisterService(w, r, srvID, &card.Card{ip, int32(port), true, "", false})
 	return
 }
 

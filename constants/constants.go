@@ -45,6 +45,7 @@ const (
 
 // time consts
 var (
+	DefaultRPCDialTimeout             = 20 * time.Second
 	DefaultReadTimeout                = 15 * time.Second
 	DefaultPeriodShort                = 500 * time.Millisecond
 	DefaultPeriodLong                 = 2000 * time.Millisecond

@@ -1,0 +1,30 @@
+
+syntax = "proto3";
+
+import public "github.com/GoCollaborate/src/artifacts/card/card.proto";
+import public "github.com/GoCollaborate/src/artifacts/digest/digest.proto";
+
+package message;
+
+option go_package = "github.com/GoCollaborate/src/artifacts/message";
+
+message CardMessage {
+	enum Type {
+		ACK = 0;
+		ACK2 = 1;
+		ACK3 = 2;
+		SYNC = 3;
+	}
+
+	string cluster = 1;
+	card.Card from = 2;
+	card.Card to = 3;
+	Status status = 4;
+	Type type = 5;
+	digest.Digest digest = 6;
+}
+
+message Status {
+	string key = 1;
+	string value = 2;
+}

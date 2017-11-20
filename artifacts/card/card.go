@@ -6,12 +6,14 @@ import (
 )
 
 // Card is the network config of server
-type Card struct {
-	IP    string `json:"ip"`
-	Port  int    `json:"port"`
-	Alive bool   `json:"alive"`
-	API   string `json:"api,omitempty"`
-	Seed  bool   `json:"seed,omitempty"`
+func NewCard(ip string, port int32, alive bool, api string, seed bool) *Card {
+	return &Card{
+		IP:    ip,
+		Port:  port,
+		Alive: alive,
+		API:   api,
+		Seed:  seed,
+	}
 }
 
 func (c *Card) IsInitialized() bool {
@@ -22,11 +24,11 @@ func (c *Card) IsInitialized() bool {
 }
 
 func (c *Card) GetFullIP() string {
-	return c.IP + ":" + strconv.Itoa(c.Port)
+	return c.IP + ":" + strconv.Itoa(int(c.Port))
 }
 
 func (c *Card) GetFullExposureAddress() string {
-	return utils.MapToExposureAddress(c.IP) + ":" + strconv.Itoa(c.Port)
+	return utils.MapToExposureAddress(c.IP) + ":" + strconv.Itoa(int(c.Port))
 }
 
 func (c *Card) GetFullExposureCard() Card {
@@ -34,7 +36,7 @@ func (c *Card) GetFullExposureCard() Card {
 }
 
 func (c *Card) GetFullEndPoint() string {
-	return c.IP + ":" + strconv.Itoa(c.Port) + "/" + c.API
+	return c.IP + ":" + strconv.Itoa(int(c.Port)) + "/" + c.API
 }
 
 func (c *Card) IsEqualTo(another *Card) bool {
@@ -47,6 +49,10 @@ func (c *Card) IsSeed() bool {
 
 func (c *Card) ToSeed() {
 	c.Seed = true
+}
+
+func (c *Card) SetAlive(alive bool) {
+	c.Alive = alive
 }
 
 // current RPC port

@@ -5,8 +5,8 @@ import (
 )
 
 type IDigest interface {
-	Cards() map[string]card.Card
-	TimeStamp() int64
-	SetCards(map[string]card.Card)
+	GetCards() map[string]*card.Card
+	GetTimeStamp() int64
+	SetCards(map[string]*card.Card)
 	SetTimeStamp(int64)
 }

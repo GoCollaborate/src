@@ -83,7 +83,7 @@ func GetLocalIP() string {
 	return ""
 }
 
-func GetPort() int {
+func GetPort() int32 {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
 		panic(err)
@@ -94,7 +94,7 @@ func GetPort() int {
 		panic(err)
 	}
 	defer l.Close()
-	return l.Addr().(*net.TCPAddr).Port
+	return int32(l.Addr().(*net.TCPAddr).Port)
 }
 
 func MapToExposureAddress(in string) string {

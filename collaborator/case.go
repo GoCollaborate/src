@@ -25,8 +25,8 @@ type Case struct {
 }
 
 type Exposed struct {
-	Cards     map[string]card.Card `json:"cards,omitempty"`
-	TimeStamp int64                `json:"timestamp,omitempty"`
+	Cards     map[string]*card.Card `json:"cards,omitempty"`
+	TimeStamp int64                 `json:"timestamp,omitempty"`
 }
 
 type Reserved struct {
@@ -79,17 +79,17 @@ func (c *Case) Stamp() *Case {
 	return c
 }
 
-func (c *Case) Cluster() string {
+func (c *Case) GetCluster() string {
 	return c.CaseID
 }
 
-func (c *Case) Digest() iremote.IDigest {
+func (c *Case) GetDigest() iremote.IDigest {
 	return &digest.Digest{c.Cards, c.TimeStamp}
 }
 
 func (c *Case) Update(dgst iremote.IDigest) {
-	c.Cards = dgst.Cards()
-	c.TimeStamp = dgst.TimeStamp()
+	c.Cards = dgst.GetCards()
+	c.TimeStamp = dgst.GetTimeStamp()
 }
 
 func (c *Case) Terminate(key string) *Case {
@@ -99,7 +99,7 @@ func (c *Case) Terminate(key string) *Case {
 	return c
 }
 
-func (c *Case) ReturnByPos(pos int) card.Card {
+func (c *Case) ReturnByPos(pos int) *card.Card {
 	mu.Lock()
 	defer mu.Unlock()
 	if l := len(c.Cards); pos > l {
@@ -112,13 +112,13 @@ func (c *Case) ReturnByPos(pos int) card.Card {
 		}
 		counter++
 	}
-	return card.Card{}
+	return &card.Card{}
 }
 
 func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, error) {
 	// return if message is wrongly sent
 	var (
-		out *message.CardMessage = new(message.CardMessage)
+		out *message.CardMessage = message.NewCardMessage()
 		err error                = nil
 	)
 
@@ -127,14 +127,14 @@ func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, err
 	}
 	var (
 		// local digest
-		ldgst = c.Digest()
+		ldgst = c.GetDigest()
 		// remote digest
-		rdgst = in.Digest()
+		rdgst = in.GetDigest()
 		// feedback digest
 		fbdgst = ldgst
 	)
-	switch in.Type() {
-	case iremote.MsgTypeSync:
+	switch in.GetType() {
+	case message.CardMessage_SYNC:
 		// msg has a more recent timestamp
 		if messageHelper.Compare(ldgst, rdgst) {
 			fbdgst = messageHelper.Merge(ldgst, rdgst)
@@ -143,10 +143,11 @@ func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, err
 		}
 		// update digest to feedback
 		out.Update(fbdgst)
+
 		// return ack message
-		out.SetType(iremote.MsgTypeAck)
+		out.SetType(message.CardMessage_ACK)
 		out.SetStatus(constants.GossipHeaderOK)
-	case iremote.MsgTypeAck:
+	case message.CardMessage_ACK:
 		// msg has a more recent timestamp
 		if messageHelper.Compare(ldgst, rdgst) {
 			fbdgst = messageHelper.Merge(ldgst, rdgst)
@@ -154,30 +155,30 @@ func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, err
 			c.Update(fbdgst)
 		}
 		// return ack message
-		out.SetType(iremote.MsgTypeAck2)
+		out.SetType(message.CardMessage_ACK2)
 		out.SetStatus(constants.GossipHeaderOK)
-	case iremote.MsgTypeAck2:
+	case message.CardMessage_ACK2:
 		// return ack message
-		out.SetType(iremote.MsgTypeAck3)
+		out.SetType(message.CardMessage_ACK3)
 		out.SetStatus(constants.GossipHeaderOK)
-	case iremote.MsgTypeAck3:
+	case message.CardMessage_ACK3:
 		// do nothing
 	default:
 		out.SetStatus(constants.GossipHeaderUnknownMsgType)
 		err = constants.ErrUnknownMsgType
 	}
-	out.SetTo(in.From())
-	out.SetFrom(in.To())
-	out.SetCluster(c.Cluster())
+	out.SetTo(in.GetFrom())
+	out.SetFrom(in.GetTo())
+	out.SetCluster(c.GetCluster())
 	return out, nil
 }
 
 func (c *Case) Validate(in *message.CardMessage, out *message.CardMessage) error {
-	if c.Cluster() != in.Cluster() {
+	if c.GetCluster() != in.GetCluster() {
 		out.SetStatus(constants.GossipHeaderCaseMismatch)
 		return constants.ErrCaseMismatch
 	}
-	if to := in.To(); !c.Local.IsEqualTo(&to) {
+	if to := in.GetTo(); !c.Local.IsEqualTo(to) {
 		logger.LogError(c)
 		out.SetStatus(constants.GossipHeaderCollaboratorMismatch)
 		return constants.ErrCollaboratorMismatch

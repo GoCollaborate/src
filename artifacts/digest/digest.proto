@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package digest;
+
+import public "github.com/GoCollaborate/src/artifacts/card/card.proto";
+
+option go_package = "github.com/GoCollaborate/src/artifacts/digest";
+
+message Digest {
+	map<string,card.Card> cards = 1;
+	int64 ts = 2;
+}

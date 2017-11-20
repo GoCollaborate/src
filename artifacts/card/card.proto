@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+package card;
+
+option go_package = "github.com/GoCollaborate/src/artifacts/card";
+
+message Card {
+	string IP = 1;
+	int32 Port = 2;
+	bool Alive = 3;
+	string API = 4;
+	bool Seed = 5;
+}

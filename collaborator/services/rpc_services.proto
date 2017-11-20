@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package services;
+import "github.com/GoCollaborate/src/artifacts/task/task.proto";
+import "github.com/GoCollaborate/src/artifacts/message/message.proto";
+
+
+service RPCService {
+	rpc Distribute(task.TaskPayload) returns (task.TaskPayload) {}
+	rpc Exchange(message.CardMessage) returns (message.CardMessage) {}
+}
