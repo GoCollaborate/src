@@ -6,7 +6,6 @@ import (
 	"github.com/GoCollaborate/src/artifacts/iexecutor"
 	"github.com/GoCollaborate/src/artifacts/iworkable"
 	"github.com/GoCollaborate/src/artifacts/message"
-	"github.com/GoCollaborate/src/artifacts/service"
 	"github.com/GoCollaborate/src/artifacts/stats"
 	"github.com/GoCollaborate/src/artifacts/task"
 	"github.com/GoCollaborate/src/cmd"
@@ -17,7 +16,6 @@ import (
 	"github.com/GoCollaborate/src/web"
 	"github.com/GoCollaborate/src/wrappers/cardHelper"
 	"github.com/GoCollaborate/src/wrappers/messageHelper"
-	"github.com/GoCollaborate/src/wrappers/serviceHelper"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
@@ -104,16 +102,16 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 		}
 	}()
 
-	go func() {
-		// service registry
-		services, err := clbt.RegisterService()
-		connected := err == nil
-		// service mornitoring
-		for connected {
-			<-time.After(constants.DefaultHeartbeatInterval)
-			clbt.HeartBeat(services)
-		}
-	}()
+	// go func() {
+	// service registry
+	// services, err := clbt.RegisterService()
+	// connected := err == nil
+	// service mornitoring
+	// for connected {
+	// 	<-time.After(constants.DefaultHeartbeatInterval)
+	// 	clbt.HeartBeat(services)
+	// }
+	// }()
 }
 
 // Catchup with peer servers.
@@ -188,74 +186,81 @@ func (clbt *Collaborator) Clean() {
 	cardHelper.RangePrint(cards)
 }
 
-func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error) {
-	var (
-		cdntIP   = clbt.CardCase.Coordinator.GetFullIP()
-		clbtIP   = clbt.CardCase.Local.GetFullIP()
-		services = map[string]*service.Service{}
-	)
+// func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error) {
+// 	var (
+// 		cdntIP   = clbt.CardCase.Coordinator.GetFullIP()
+// 		clbtIP   = clbt.CardCase.Local.GetFullIP()
+// 		services = map[string]*service.Service{}
+// 	)
 
-	resp, err := http.Get("http://" + cdntIP + "/v1/cluster/" + clbt.CardCase.CaseID + "/services")
-	if err != nil {
-		return services, err
-	}
+// 	// verify existence of cluster
+// 	resp, err := http.Get("http://" + cdntIP + "/v1/cluster/" + clbt.CardCase.CaseID + "/services")
+// 	if err != nil {
+// 		return services, err
+// 	}
 
-	// if cluster already get created, return to call general service registry api on coordinator
-	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return services, err
-	}
+// 	// if cluster already get created, call general service registry api on coordinator
+// 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
+// 		bytes, _ := ioutil.ReadAll(r.Body)
+// 		payload := serviceHelper.DecodeService(bytes)
+// 		for _, val := range payload.Data {
+// 			val.ID
+// 		}
+// 		return services, err
+// 	}
 
-	var (
-		router = store.GetRouter()
-	)
+// 	var (
+// 		router = store.GetRouter()
+// 	)
 
-	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		t, err := route.GetPathTemplate()
-		if err != nil {
-			return err
-		}
-		svr := service.NewService()
-		svr.Description = route.GetName()
-		svr.Methods, _ = route.GetMethods()
-		svr.RegList = append(svr.RegList, card.Card{
-			IP:    clbt.CardCase.Local.IP,
-			Port:  clbt.CardCase.Local.Port,
-			API:   t,
-			Alive: true,
-		})
-		services[clbtIP+t] = svr
-		return nil
-	})
+// 	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+// 		t, err := route.GetPathTemplate()
+// 		if err != nil {
+// 			return err
+// 		}
+// 		svr := service.NewService()
+// 		svr.Description = route.GetName()
+// 		svr.Methods, _ = route.GetMethods()
+// 		svr.RegList = append(svr.RegList, card.Card{
+// 			IP:    clbt.CardCase.Local.IP,
+// 			Port:  clbt.CardCase.Local.Port,
+// 			API:   t,
+// 			Alive: true,
+// 		})
+// 		services[clbtIP+t] = svr
+// 		return nil
+// 	})
 
-	reader, err := serviceHelper.MarshalServiceResourceToByteStreamReader(services)
-	if err != nil {
-		return services, err
-	}
+// 	reader, err := serviceHelper.MarshalServiceResourceToByteStreamReader(services)
+// 	if err != nil {
+// 		return services, err
+// 	}
 
-	// walk through services and get them created on the coordinator
-	resp2, err := http.Post("http://"+cdntIP+"/v1/services", "application/json", reader)
-	if err != nil {
-		return services, err
-	}
+// 	// walk through services and get them created on the coordinator
+// 	resp2, err := http.Post("http://"+cdntIP+"/v1/services", "application/json", reader)
+// 	if err != nil {
+// 		return services, err
+// 	}
 
-	_, err = http.Post("http://"+cdntIP+"/v1/cluster/"+clbt.CardCase.CaseID+"/services", "application/json", resp2.Body)
-	if err != nil {
-		return services, err
-	}
+// 	_, err = http.Post("http://"+cdntIP+"/v1/cluster/"+clbt.CardCase.CaseID+"/services", "application/json", resp2.Body)
+// 	if err != nil {
+// 		return services, err
+// 	}
 
-	return services, nil
-}
+// 	return services, nil
+// }
 
-func (clbt *Collaborator) HeartBeat(services map[string]*service.Service) {
-	cdntIP := clbt.CardCase.Coordinator.GetFullIP()
+// func (clbt *Collaborator) HeartBeat(services map[string]*service.Service) {
+// 	cdntIP := clbt.CardCase.Coordinator.GetFullIP()
 
-	reader, err := serviceHelper.MarshalHeartbeatToByteStreamReader(&clbt.CardCase.Local, services)
-	if err != nil {
-		panic(err)
-	}
+// 	reader, err := serviceHelper.MarshalHeartbeatToByteStreamReader(&clbt.CardCase.Local, services)
+// 	if err != nil {
+// 		panic(err)
+// 	}
 
-	http.Post("http://"+cdntIP+"/v1/services/heartbeat", "application/json", reader)
-}
+// 	// todo: change to cluster heartbeat
+// 	http.Post("http://"+cdntIP+"/v1/services/heartbeat", "application/json", reader)
+// }
 
 // Start handling server routes.
 func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
