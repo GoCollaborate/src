@@ -1,15 +1,7 @@
 package serviceHelper
 
 import (
-	// "bytes"
-	// "encoding/json"
-	// "github.com/GoCollaborate/src/artifacts/card"
-	// "github.com/GoCollaborate/src/artifacts/restful"
 	"github.com/GoCollaborate/src/artifacts/service"
-	// "github.com/GoCollaborate/src/constants"
-	// "github.com/GoCollaborate/src/utils"
-	// "io"
-	// "net/http"
 )
 
 func ModeInterpret(original interface{}) service.Mode {
