@@ -7,6 +7,7 @@ import (
 	"github.com/GoCollaborate/src/logger"
 	"github.com/gorilla/mux"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
 )
@@ -28,40 +29,41 @@ type Coordinator struct {
 func (cdnt *Coordinator) Handle(router *mux.Router) *mux.Router {
 
 	// get services
-	router.HandleFunc("/{version}/services", HandlerFuncGetServices).Methods("GET")
+	router.HandleFunc("/{version}/services", HandlerFuncGetServices).Methods(http.MethodGet)
 	// create services
-	router.HandleFunc("/{version}/services", HandlerFuncPostServices).Methods("POST")
+	router.HandleFunc("/{version}/services", HandlerFuncPostServices).Methods(http.MethodPost)
 	// alter services
-	router.HandleFunc("/{version}/services", HandlerFuncAlterServices).Methods("PUT")
+	router.HandleFunc("/{version}/services", HandlerFuncAlterServices).Methods(http.MethodPut)
 	// alter a single service
-	router.HandleFunc("/{version}/services/{srvid}", HandlerFuncAlterService).Methods("PUT")
+	router.HandleFunc("/{version}/services/{srvid}", HandlerFuncAlterService).Methods(http.MethodPut)
 	// get a single service
-	router.HandleFunc("/{version}/services/{srvid}", HandlerFuncGetService).Methods("GET")
+	router.HandleFunc("/{version}/services/{srvid}", HandlerFuncGetService).Methods(http.MethodGet)
 	// delete a single service
-	router.HandleFunc("/{version}/services/{srvid}", HandlerFuncDeleteService).Methods("DELETE")
+	router.HandleFunc("/{version}/services/{srvid}", HandlerFuncDeleteService).Methods(http.MethodDelete)
 	// register a provider
-	router.HandleFunc("/{version}/services/{srvid}/registry", HandlerFuncRegisterService).Methods("POST")
+	router.HandleFunc("/{version}/services/{srvid}/registry", HandlerFuncRegisterService).Methods(http.MethodPost)
 	// subscribe a service
-	router.HandleFunc("/{version}/services/{srvid}/subscription", HandlerFuncSubscribeService).Methods("POST")
+	router.HandleFunc("/{version}/services/{srvid}/subscription", HandlerFuncSubscribeService).Methods(http.MethodPost)
 
 	// client launch request to call a service
-	router.HandleFunc("/{version}/query/{srvid}/{token}", HandlerFuncQueryService).Methods("GET")
+	router.HandleFunc("/{version}/query/{srvid}/{token}", HandlerFuncQueryService).Methods(http.MethodGet)
 
 	// single deletion [DELETE BODY is not explicitly specified in HTTP 1.1,
 	// so it's better not to use its message-body]
-	router.HandleFunc("/{version}/services/{srvid}/registry/{ip}/{port}", HandlerFuncDeRegisterService).Methods("DELETE")
-	router.HandleFunc("/{version}/services/{srvid}/subscription/{token}", HandlerFuncUnSubscribeService).Methods("DELETE")
+	router.HandleFunc("/{version}/services/{srvid}/registry/{ip}/{port}", HandlerFuncDeRegisterService).Methods(http.MethodDelete)
+	router.HandleFunc("/{version}/services/{srvid}/subscription/{token}", HandlerFuncUnSubscribeService).Methods(http.MethodDelete)
 
 	// // bulk deletion
 	// router.HandleFunc("/{version}/services/{srvid}/registry", HandlerFuncDeRegisterServiceAll).Methods("DELETE")
 	// router.HandleFunc("/{version}/services/{srvid}/subscription", HandlerFuncUnSubscribeServiceAll).Methods("DELETE")
 
 	// clustering apis
-	router.HandleFunc("/{version}/cluster/{id}/services", HanlderFuncGetClusterServices).Methods("GET")
-	router.HandleFunc("/{version}/cluster/{id}/services", HanlderFuncPostClusterServices).Methods("POST")
+	router.HandleFunc("/{version}/cluster/{id}/services", HanlderFuncGetClusterServices).Methods(http.MethodGet)
+	router.HandleFunc("/{version}/cluster/{id}/services", HanlderFuncPostClusterServices).Methods(http.MethodPost)
 
 	// services should be decoupled from cluster
-	router.HandleFunc("/{version}/heartbeat", HandlerFuncHeartbeatServices).Methods("POST")
+	router.HandleFunc("/{version}/heartbeat", HandlerFuncHeartbeatServices).Methods(http.MethodPost)
+	router.HandleFunc("/{version}/cluster/{id}/heartbeat", HandlerFuncClusterHeartbeatServices).Methods(http.MethodGet)
 
 	go func() {
 		<-time.After(constants.DefaultCollaboratorExpiryInterval)

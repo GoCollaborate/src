@@ -8,6 +8,7 @@ import (
 	"github.com/GoCollaborate/src/artifacts/iexecutor"
 	"github.com/GoCollaborate/src/artifacts/iworkable"
 	"github.com/GoCollaborate/src/artifacts/message"
+	"github.com/GoCollaborate/src/artifacts/restful"
 	"github.com/GoCollaborate/src/artifacts/service"
 	"github.com/GoCollaborate/src/artifacts/stats"
 	"github.com/GoCollaborate/src/artifacts/task"
@@ -108,12 +109,12 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 	go func() {
 		// service registry
 		clbt.RegisterService()
-		// connected := err == nil
+		connected := err == nil
 		// service mornitoring
-		// for connected {
-		// 	<-time.After(constants.DefaultHeartbeatInterval)
-		// 	clbt.HeartBeat(services)
-		// }
+		for connected {
+			<-time.After(constants.DefaultHeartbeatInterval)
+			clbt.HeartBeat()
+		}
 	}()
 }
 
@@ -189,7 +190,7 @@ func (clbt *Collaborator) Clean() {
 	cardHelper.RangePrint(cards)
 }
 
-func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error) {
+func (clbt *Collaborator) RegisterService() error {
 	var (
 		cdntIP   = clbt.CardCase.Coordinator.GetFullIP()
 		clbtIP   = clbt.CardCase.Local.GetFullIP()
@@ -201,39 +202,41 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 	// verify existence of cluster
 	resp, err := http.Get("http://" + cdntIP + "/v1/cluster/" + clbt.CardCase.CaseID + "/services")
 	if err != nil {
-		return services, err
+		return err
 	}
 
 	// if cluster already get created, the creator of cluster is responsible for
 	// maintaining the service discovery capability on coordinator
 	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return services, err
+		return err
 	}
 
-	router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-		t, err := route.GetPathTemplate()
-		if err != nil {
-			return err
-		}
-		svr := service.NewService()
-		svr.Description = route.GetName()
-		svr.Methods, _ = route.GetMethods()
-		svr.RegList = append(svr.RegList, card.Card{
-			IP:    clbt.CardCase.Local.IP,
-			Port:  clbt.CardCase.Local.Port,
-			API:   t,
-			Alive: true,
+	router.Walk(
+		func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+			t, err := route.GetPathTemplate()
+			if err != nil {
+				return err
+			}
+			svr := service.NewService()
+			svr.Description = route.GetName()
+			svr.Methods, _ = route.GetMethods()
+			svr.RegList = append(svr.RegList, card.Card{
+				IP:    clbt.CardCase.Local.IP,
+				Port:  clbt.CardCase.Local.Port,
+				API:   t,
+				Alive: true,
+			})
+			services[clbtIP+t] = svr
+			return nil
 		})
-		services[clbtIP+t] = svr
-		return nil
-	})
 
 	json.
 		NewEncoder(
 			reader,
 		).
 		Encode(
-			service.NewServicesResource(&services),
+			restful.NewRequest().
+				WithResourceArr(service.NewServiceResourcesFromMap(&services)),
 		)
 
 	// walk through services and get them created on the coordinator
@@ -244,7 +247,7 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 	)
 
 	if err != nil {
-		return services, err
+		return err
 	}
 
 	_, err = http.Post(
@@ -254,23 +257,20 @@ func (clbt *Collaborator) RegisterService() (map[string]*service.Service, error)
 	)
 
 	if err != nil {
-		return services, err
+		return err
 	}
 
-	return services, nil
+	return nil
 }
 
-// func (clbt *Collaborator) HeartBeat(services map[string]*service.Service) {
-// 	cdntIP := clbt.CardCase.Coordinator.GetFullIP()
+func (clbt *Collaborator) HeartBeat() {
+	var (
+		cdntIP    = clbt.CardCase.Coordinator.GetFullIP()
+		clusterID = clbt.CardCase.GetCluster()
+	)
 
-// 	reader, err := serviceHelper.MarshalHeartbeatToByteStreamReader(&clbt.CardCase.Local, services)
-// 	if err != nil {
-// 		panic(err)
-// 	}
-
-// 	// todo: change to cluster heartbeat
-// 	http.Post("http://"+cdntIP+"/v1/services/heartbeat", "application/json", reader)
-// }
+	http.Get("http://" + cdntIP + "/v1/cluster/" + clusterID + "/heartbeat")
+}
 
 // Start handling server routes.
 func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {

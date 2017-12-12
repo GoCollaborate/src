@@ -11,7 +11,7 @@ import (
 )
 
 type Service struct {
-	ServiceID   string                `json:"serviceid,omitempty"`
+	ServiceID   string                `json:"service_id,omitempty"`
 	Description string                `json:"description"`
 	Methods     []string              `json:"methods"`
 	Parameters  []parameter.Parameter `json:"parameters"`
@@ -202,6 +202,18 @@ func (s *Service) Heartbeat(agt *card.Card) {
 	y := s.RegList
 	for _, x := range y {
 		if agt.IsEqualTo(&x) {
+			s.Heartbeats[x.GetFullEndPoint()] = time.Now().Unix()
+			return
+		}
+	}
+}
+
+func (s *Service) ClusterHeartbeat(endpoint string) {
+	s.serviceLock.Lock()
+	defer s.serviceLock.Unlock()
+	y := s.RegList
+	for _, x := range y {
+		if x.GetFullEndPoint() == endpoint {
 			s.Heartbeats[x.GetFullEndPoint()] = time.Now().Unix()
 			return
 		}

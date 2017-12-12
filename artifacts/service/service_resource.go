@@ -20,6 +20,44 @@ func NewServiceResource(service *Service) *ServiceResource {
 	}
 }
 
+func NewServiceResources(services ...*Service) []*ServiceResource {
+	var (
+		resources = []*ServiceResource{}
+	)
+
+	for _, s := range services {
+		resources = append(resources, &ServiceResource{
+			&Resource{
+				Id:            s.ServiceID,
+				Type:          "service",
+				Relationships: map[string]*Relationship{},
+			},
+			s,
+		})
+	}
+
+	return resources
+}
+
+func NewServiceResourcesFromMap(services *map[string]*Service) []*ServiceResource {
+	var (
+		resources = []*ServiceResource{}
+	)
+
+	for _, s := range *services {
+		resources = append(resources, &ServiceResource{
+			&Resource{
+				Id:            s.ServiceID,
+				Type:          "service",
+				Relationships: map[string]*Relationship{},
+			},
+			s,
+		})
+	}
+
+	return resources
+}
+
 type ServicesResource struct {
 	*Resource
 	Attributes *map[string]*Service `json:"attributes"`

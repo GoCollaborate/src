@@ -138,7 +138,7 @@ func HandlerFuncPostServices(w http.ResponseWriter, r *http.Request) {
 			constants.HeaderContentTypeJSON.Key,
 			constants.HeaderContentTypeJSON.Value,
 		).
-		WithStatus(http.StatusOK).
+		WithStatus(http.StatusCreated).
 		Send()
 
 	return
@@ -688,6 +688,76 @@ func HandlerFuncHeartbeatServices(w http.ResponseWriter, r *http.Request) {
 
 	restful.Writer(w).
 		WithResourceArr(heartbeatResources).
+		WithLinks(
+			&resources.Links{
+				Self: r.URL.String(),
+			},
+		).
+		WithHeader(
+			constants.HeaderContentTypeJSON.Key,
+			constants.HeaderContentTypeJSON.Value,
+		).
+		WithStatus(http.StatusOK).
+		Send()
+}
+
+func HandlerFuncClusterHeartbeatServices(w http.ResponseWriter, r *http.Request) {
+	var (
+		vars = mux.Vars(r)
+		id   = vars["id"]
+		list = map[string]struct{}{}
+		ok   = true
+	)
+
+	// retrieve cluster services
+	if list, ok = singleton.Clusters[id]; !ok {
+		restful.Writer(w).
+			WithResources(
+				restful.NewErrorResource(
+					restful.Error404NotFound(),
+				),
+			).
+			WithLinks(
+				&resources.Links{
+					Self: r.URL.String(),
+				},
+			).
+			WithHeader(
+				constants.HeaderContentTypeJSON.Key,
+				constants.HeaderContentTypeJSON.Value,
+			).
+			WithStatus(http.StatusNotFound).
+			Send()
+		return
+	}
+
+	// range over cluster services
+	for key, _ := range list {
+
+		if _, ok := singleton.Services[key]; !ok {
+			restful.Writer(w).
+				WithResources(
+					restful.NewErrorResource(
+						restful.Error404NotFound(),
+					),
+				).
+				WithLinks(
+					&resources.Links{
+						Self: r.URL.String(),
+					},
+				).
+				WithHeader(
+					constants.HeaderContentTypeJSON.Key,
+					constants.HeaderContentTypeJSON.Value,
+				).
+				WithStatus(http.StatusNotFound).
+				Send()
+			return
+		}
+		singleton.Services[key].ClusterHeartbeat(key)
+	}
+
+	restful.Writer(w).
 		WithLinks(
 			&resources.Links{
 				Self: r.URL.String(),

@@ -24,6 +24,14 @@ type RestfulResource interface {
 	GetRelationships() map[string]*Relationship
 }
 
+func NewRequest() *Request {
+	return new(Request)
+}
+
+func NewResponse() *Response {
+	return new(Response)
+}
+
 func Writer(w http.ResponseWriter) *Response {
 
 	var (

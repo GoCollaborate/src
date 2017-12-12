@@ -5,6 +5,7 @@
 #### 0.4.1
 - Refactor handler code
 - Clean up code, remove unnecessary method body
+- Full JSON API compliance
 #### 0.4.0
 - Update project distributed protocol to protobuf
 - Update RPC framework to gRPC
