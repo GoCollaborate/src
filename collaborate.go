@@ -54,9 +54,9 @@ func Set(key string, val ...interface{}) interface{} {
 		fs := store.GetInstance()
 
 		methods := val[0].([]string)
-		handlers := make([]func(w http.ResponseWriter, r *http.Request) *task.Job, len(val)-1)
+		handlers := make([]func(w http.ResponseWriter, r *http.Request, bg *task.Background), len(val)-1)
 		for i, v := range val[1:] {
-			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request) *task.Job)
+			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request, bg *task.Background))
 		}
 
 		// register jobs
@@ -65,9 +65,9 @@ func Set(key string, val ...interface{}) interface{} {
 		fs := store.GetInstance()
 
 		methods := val[0].([]string)
-		handlers := make([]func(w http.ResponseWriter, r *http.Request) *task.Job, len(val)-1)
+		handlers := make([]func(w http.ResponseWriter, r *http.Request, bg *task.Background), len(val)-1)
 		for i, v := range val[1:] {
-			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request) *task.Job)
+			handlers[i] = v.(func(w http.ResponseWriter, r *http.Request, bg *task.Background))
 		}
 
 		// register jobs

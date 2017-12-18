@@ -150,7 +150,14 @@ func (clbt *Collaborator) Catchup() {
 
 			from := c.Local.GetFullExposureCard()
 			to := e
-			var in *message.CardMessage = message.NewCardMessageWithOptions(c.GetCluster(), &from, to, dgst.GetCards(), dgst.GetTimeStamp(), message.CardMessage_SYNC)
+			var in *message.CardMessage = message.NewCardMessageWithOptions(
+				c.GetCluster(),
+				&from,
+				to,
+				dgst.GetCards(),
+				dgst.GetTimeStamp(),
+				message.CardMessage_SYNC,
+			)
 			var out *message.CardMessage = message.NewCardMessage()
 			var out2 *message.CardMessage = message.NewCardMessage()
 			// first exchange
@@ -385,23 +392,30 @@ func (clbt *Collaborator) HandleLocal(router *mux.Router, jobFunc *store.JobFunc
 
 	var (
 		f = func(w http.ResponseWriter, r *http.Request) {
-			job := jobFunc.F(w, r)
 			var (
+				bg      = task.NewBackground()
 				counter = 0
 			)
-			for s := job.Front(); s != nil; s = s.Next() {
-				exes, err := job.Exes(counter)
-				if err != nil {
-					logger.GetLoggerInstance().LogError(err)
-					break
+
+			jobFunc.F(w, r, bg)
+
+			go func() {
+				job := bg.Done()
+				defer bg.Close()
+				for s := job.Front(); s != nil; s = s.Next() {
+					exes, err := job.Exes(counter)
+					if err != nil {
+						logger.GetLoggerInstance().LogError(err)
+						break
+					}
+					err = clbt.LocalDistribute(&s.TaskSet, exes)
+					if err != nil {
+						logger.GetLoggerInstance().LogError(err)
+						break
+					}
+					counter++
 				}
-				err = clbt.LocalDistribute(&s.TaskSet, exes)
-				if err != nil {
-					logger.GetLoggerInstance().LogError(err)
-					break
-				}
-				counter++
-			}
+			}()
 		}
 		fs = store.GetInstance()
 	)
@@ -423,24 +437,31 @@ func (clbt *Collaborator) HandleShared(router *mux.Router, jobFunc *store.JobFun
 
 	var (
 		f = func(w http.ResponseWriter, r *http.Request) {
-			job := jobFunc.F(w, r)
 			var (
+				bg      = task.NewBackground()
 				counter = 0
 			)
-			for s := job.Front(); s != nil; s = s.Next() {
-				exes, err := job.Exes(counter)
-				if err != nil {
-					logger.GetLoggerInstance().LogError(err)
-					break
-				}
 
-				err = clbt.SharedDistribute(&s.TaskSet, exes)
-				if err != nil {
-					logger.GetLoggerInstance().LogError(err)
-					break
+			jobFunc.F(w, r, bg)
+
+			go func() {
+				job := bg.Done()
+				defer bg.Close()
+				for s := job.Front(); s != nil; s = s.Next() {
+					exes, err := job.Exes(counter)
+					if err != nil {
+						logger.GetLoggerInstance().LogError(err)
+						break
+					}
+
+					err = clbt.SharedDistribute(&s.TaskSet, exes)
+					if err != nil {
+						logger.GetLoggerInstance().LogError(err)
+						break
+					}
+					counter++
 				}
-				counter++
-			}
+			}()
 		}
 		fs = store.GetInstance()
 	)

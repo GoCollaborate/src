@@ -75,7 +75,7 @@ type FS struct {
 }
 
 type JobFunc struct {
-	F         func(w http.ResponseWriter, r *http.Request) *task.Job
+	F         func(w http.ResponseWriter, r *http.Request, bg *task.Background)
 	Methods   []string
 	Signature string
 }
@@ -188,14 +188,14 @@ func (fs *FS) GetShared(key string) (*JobFunc, error) {
 	return new(JobFunc), constants.ErrJobNotExist
 }
 
-func (fs *FS) AddLocal(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request) *task.Job) {
+func (fs *FS) AddLocal(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request, bg *task.Background)) {
 	for _, f := range jobs {
 		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
 		fs.LocalJobs[signature] = &JobFunc{f, methods, signature}
 	}
 }
 
-func (fs *FS) AddShared(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request) *task.Job) {
+func (fs *FS) AddShared(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request, bg *task.Background)) {
 	for _, f := range jobs {
 		signature := utils.StripRouteToAPIRoute(utils.ReflectFuncName(f))
 		fs.SharedJobs[signature] = &JobFunc{f, methods, signature}

@@ -106,17 +106,27 @@ import (
 	"github.com/GoCollaborate/src/artifacts/task"
 	"github.com/GoCollaborate/src/wrappers/taskHelper"
 	"net/http"
+	"time"
 )
 
-func ExampleJobHandler(w http.ResponseWriter, r *http.Request) *task.Job {
+func ExampleJobHandler(w http.ResponseWriter, r *http.Request, bg *task.Background) {
 	job := task.MakeJob()
-	job.Tasks(&task.Task{task.SHORT,
-		task.BASE, "exampleFunc",
-		task.Collection{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
-		task.Collection{0},
-		task.NewTaskContext(struct{}{}), 0})
+
+	job.Tasks(
+		&task.Task{
+			task.SHORT,
+			task.BASE,
+			"exampleFunc",
+			task.Collection{1, 2, 3, 4, 1, 2, 3, 4, 1, 2, 3, 4},
+			task.Collection{0},
+			task.NewTaskContext(struct{}{}),
+			0,
+		},
+	)
+
 	job.Stacks("core.ExampleTask.Mapper", "core.ExampleTask.Reducer")
-	return job
+
+	bg.Mount(job)
 }
 
 func ExampleFunc(source *task.Collection,
@@ -153,7 +163,6 @@ func (r *SimpleReducer) Reduce(maps map[int]*task.Task) (map[int]*task.Task, err
 	fmt.Printf("The task set is: %v", maps)
 	return maps, nil
 }
-
 
 ```
 ### Run

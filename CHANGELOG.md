@@ -2,6 +2,10 @@
 ## Updates
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.4.x
+#### 0.4.2
+- Update handler API -> Add `Background` as Job loader
+- Support asynchronously loading source data to Job
+- Update examples and documentation
 #### 0.4.1
 - Refactor handler code
 - Clean up code, remove unnecessary method body

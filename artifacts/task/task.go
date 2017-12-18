@@ -55,6 +55,10 @@ func (t *taskPriority) GetPriority() taskPriority {
 	return *t
 }
 
+func NewCollection() *Collection {
+	return &Collection{}
+}
+
 func (cg *Collection) Append(cs ...interface{}) *Collection {
 	*cg = append(*cg, cs...)
 	return cg
