@@ -3,7 +3,7 @@
 **(Please note that no downward compability will be guaranteed before the formal release 1.0.0 )**
 ### 0.4.x
 #### 0.4.2
-- Update handler API -> Add `Background` as Job loader
+- Update handler API -> Add `Background` as Job loader (acknowledge Well Shen for raising the issue and giving the suggestions)
 - Support asynchronously loading source data to Job
 - Update examples and documentation
 #### 0.4.1
