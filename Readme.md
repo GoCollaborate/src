@@ -106,7 +106,6 @@ import (
 	"github.com/GoCollaborate/src/artifacts/task"
 	"github.com/GoCollaborate/src/wrappers/taskHelper"
 	"net/http"
-	"time"
 )
 
 func ExampleJobHandler(w http.ResponseWriter, r *http.Request, bg *task.Background) {
