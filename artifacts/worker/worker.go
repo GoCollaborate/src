@@ -25,45 +25,32 @@ func (w *Worker) Start() {
 			select {
 			case <-w.Exit:
 				return
-			case tkf := <-w.UrgentTasks:
-				tk := tkf.Receive()
-				logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-				logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-				tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
 			default:
-				select {
-				case tkf := <-w.HighTasks:
-					tk := tkf.Receive()
-					logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-					logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-					tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
-				default:
-					select {
-					case tkf := <-w.MediumTasks:
-						tk := tkf.Receive()
-						logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-						logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-						tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
-					default:
-						select {
-						case tkf := <-w.LowTasks:
-							tk := tkf.Receive()
-							logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-							logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-							tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
-						default:
-							select {
-							case tkf := <-w.BaseTasks:
-								tk := tkf.Receive()
-								logger.LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-								logger.GetLoggerInstance().LogNormal(fmt.Sprintf("Worker%v:, Task Level:%v", w.ID, tk.Priority))
-								tkf.Return(fs.Call((*tk).Consumable, &(*tk).Source, &(*tk).Result, (*tk).Context))
-							default:
-								continue
-							}
-						}
-					}
-				}
+				tkf := preselect(
+					w.UrgentTasks,
+					w.HighTasks,
+					w.MediumTasks,
+					w.LowTasks,
+					w.BaseTasks,
+				)
+				tk := tkf.Receive()
+				logger.LogNormal(fmt.Sprintf(
+					"Worker%v:, Task Level:%v",
+					w.ID,
+					tk.Priority,
+				))
+				logger.GetLoggerInstance().
+					LogNormal(fmt.Sprintf(
+						"Worker%v:, Task Level:%v",
+						w.ID,
+						tk.Priority,
+					))
+				tkf.Return(fs.Call(
+					(*tk).Consumable,
+					&(*tk).Source,
+					&(*tk).Result,
+					(*tk).Context,
+				))
 			}
 		}
 	}()
@@ -75,4 +62,55 @@ func (w *Worker) GetID() uint {
 
 func (w *Worker) Quit() {
 	w.Exit <- true
+}
+
+func preselect(a, b, c, d, e chan *task.TaskFuture) *task.TaskFuture {
+	select {
+	case x := <-a:
+		return x
+	default:
+	}
+
+	select {
+	case x := <-a:
+		return x
+	case x := <-b:
+		return x
+	default:
+	}
+
+	select {
+	case x := <-a:
+		return x
+	case x := <-b:
+		return x
+	case x := <-c:
+		return x
+	default:
+	}
+
+	select {
+	case x := <-a:
+		return x
+	case x := <-b:
+		return x
+	case x := <-c:
+		return x
+	case x := <-d:
+		return x
+	default:
+	}
+
+	select {
+	case x := <-a:
+		return x
+	case x := <-b:
+		return x
+	case x := <-c:
+		return x
+	case x := <-d:
+		return x
+	case x := <-e:
+		return x
+	}
 }

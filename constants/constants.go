@@ -147,19 +147,6 @@ type Header struct {
 	Value string `json:"value"`
 }
 
-// HTTP Status
-// var (
-// Header200OK                   = Header{"200", "OK"}
-// Header201Created              = Header{"201", "Created"}
-// Header202Accepted             = Header{"202", "Accepted"}
-// Header204NoContent            = Header{"204", "NoContent"}
-// Header403Forbidden            = Header{"403", "Forbidden"}
-// Header404NotFound             = Header{"404", "NotFound"}
-// Header409Conflict             = Header{"409", "Conflict"}
-// Header415UnsupportedMediaType = Header{"415", "UnsupportedMediaType"}
-// Header422ExceedLimit          = Header{"422", "ExceedLimit"}
-// )
-
 // HTTP headers
 var (
 	HeaderContentTypeJSON     = Header{"Content-Type", "application/json"}
