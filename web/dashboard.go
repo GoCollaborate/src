@@ -15,8 +15,8 @@ import (
 )
 
 func Profile(w http.ResponseWriter, r *http.Request) {
-	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
-	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CONTENT_TYPE_JSON)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CORS_ENABLED_ALL_ORIGIN)
 	utils.AdaptHTTPWithStatus(w, http.StatusOK)
 	io.WriteString(w, cmd.VarsJSONArrayStr())
 }
@@ -60,8 +60,8 @@ func Routes(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
-	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CONTENT_TYPE_JSON)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CORS_ENABLED_ALL_ORIGIN)
 	utils.AdaptHTTPWithStatus(w, http.StatusOK)
 	io.WriteString(w, string(mal))
 }
@@ -72,7 +72,7 @@ func Logs(w http.ResponseWriter, r *http.Request) {
 		logger.LogError(err)
 		return
 	}
-	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CORS_ENABLED_ALL_ORIGIN)
 	utils.AdaptHTTPWithStatus(w, http.StatusOK)
 	io.WriteString(w, str)
 }
@@ -84,8 +84,8 @@ func Stats(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	utils.AdaptHTTPWithHeader(w, constants.HeaderContentTypeJSON)
-	utils.AdaptHTTPWithHeader(w, constants.HeaderCORSEnableAllOrigin)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CONTENT_TYPE_JSON)
+	utils.AdaptHTTPWithHeader(w, constants.HEADER_CORS_ENABLED_ALL_ORIGIN)
 	utils.AdaptHTTPWithStatus(w, http.StatusOK)
 	io.WriteString(w, string(mal))
 }

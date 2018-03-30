@@ -41,13 +41,13 @@ func (t *taskType) GetType() taskType {
 func (t *taskType) GetTimeout() time.Duration {
 	switch t.GetType() {
 	case SHORT:
-		return constants.DefaultPeriodShort
+		return constants.DEFAULT_PERIOD_SHORT
 	case LONG:
-		return constants.DefaultPeriodLong
+		return constants.DEFAULT_PERIOD_LONG
 	case PERMANENT:
-		return constants.DefaultPeriodPermanent
+		return constants.DEFAULT_PERIOD_PERMANENT
 	default:
-		return constants.DefaultPeriodPermanent
+		return constants.DEFAULT_PERIOD_PERMANENT
 	}
 }
 

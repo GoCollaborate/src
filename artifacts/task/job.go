@@ -119,7 +119,7 @@ func (j *Job) PushFront(front *Stage) *Stage {
 
 func (j *Job) Exes(i int) ([]string, error) {
 	if i > len(j.stacks) {
-		return []string{}, constants.ErrExecutorStackLengthInconsistent
+		return []string{}, constants.ERR_EXECUTOR_STACK_LENGTH_INCONSISTENT
 	}
 	return j.stacks[i], nil
 }

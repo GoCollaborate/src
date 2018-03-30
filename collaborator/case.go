@@ -7,9 +7,9 @@ import (
 	"github.com/GoCollaborate/src/artifacts/iremote"
 	"github.com/GoCollaborate/src/artifacts/message"
 	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/helpers/messageHelper"
 	"github.com/GoCollaborate/src/logger"
 	"github.com/GoCollaborate/src/store"
-	"github.com/GoCollaborate/src/wrappers/messageHelper"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -36,7 +36,7 @@ type Reserved struct {
 }
 
 func (c *Case) readStream() error {
-	bytes, err := ioutil.ReadFile(constants.DefaultCasePath)
+	bytes, err := ioutil.ReadFile(constants.DEFAULT_CASE_PATH)
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +52,7 @@ func (c *Case) writeStream() error {
 	mu.Lock()
 	defer mu.Unlock()
 	mal, err := json.Marshal(&c)
-	err = ioutil.WriteFile(constants.DefaultCasePath, mal, os.ModeExclusive)
+	err = ioutil.WriteFile(constants.DEFAULT_CASE_PATH, mal, os.ModeExclusive)
 	return err
 }
 
@@ -146,7 +146,7 @@ func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, err
 
 		// return ack message
 		out.SetType(message.CardMessage_ACK)
-		out.SetStatus(constants.GossipHeaderOK)
+		out.SetStatus(constants.GOSSIP_HEADER_OK)
 	case message.CardMessage_ACK:
 		// msg has a more recent timestamp
 		if messageHelper.Compare(ldgst, rdgst) {
@@ -156,16 +156,16 @@ func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, err
 		}
 		// return ack message
 		out.SetType(message.CardMessage_ACK2)
-		out.SetStatus(constants.GossipHeaderOK)
+		out.SetStatus(constants.GOSSIP_HEADER_OK)
 	case message.CardMessage_ACK2:
 		// return ack message
 		out.SetType(message.CardMessage_ACK3)
-		out.SetStatus(constants.GossipHeaderOK)
+		out.SetStatus(constants.GOSSIP_HEADER_OK)
 	case message.CardMessage_ACK3:
 		// do nothing
 	default:
-		out.SetStatus(constants.GossipHeaderUnknownMsgType)
-		err = constants.ErrUnknownMsgType
+		out.SetStatus(constants.GOSSIP_HEADER_UNKNOWN_MSG_TYPE)
+		err = constants.ERR_UNKNOWN_MSG_TYPE
 	}
 	out.SetTo(in.GetFrom())
 	out.SetFrom(in.GetTo())
@@ -175,13 +175,13 @@ func (c *Case) HandleMessage(in *message.CardMessage) (*message.CardMessage, err
 
 func (c *Case) Validate(in *message.CardMessage, out *message.CardMessage) error {
 	if c.GetCluster() != in.GetCluster() {
-		out.SetStatus(constants.GossipHeaderCaseMismatch)
-		return constants.ErrCaseMismatch
+		out.SetStatus(constants.GOSSIP_HEADER_CASE_MISMATCH)
+		return constants.ERR_CASE_MISMATCH
 	}
 	if to := in.GetTo(); !c.Local.IsEqualTo(to) {
 		logger.LogError(c)
-		out.SetStatus(constants.GossipHeaderCollaboratorMismatch)
-		return constants.ErrCollaboratorMismatch
+		out.SetStatus(constants.GOSSIP_HEADER_COLLABORATOR_MISMATCH)
+		return constants.ERR_COLLABORATOR_MISMATCH
 	}
 	return nil
 }

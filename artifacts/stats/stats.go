@@ -63,7 +63,7 @@ func GetStatsInstance() *StatsManager {
 			map[string]*AbstractArray{},
 			map[string]chan Hit{},
 			map[string]*[]Hit{},
-			map[string]*AbsPolicy{constants.StatsPolicySumOfInt: pol},
+			map[string]*AbsPolicy{constants.STATS_POLICY_SUM_OF_INTS: pol},
 		}
 
 		singleton.Observe("tasks")
@@ -73,7 +73,7 @@ func GetStatsInstance() *StatsManager {
 		go func() {
 			for {
 				singleton.flush()
-				<-time.After(constants.DefaultStatFlushInterval)
+				<-time.After(constants.DEFAULT_STAT_FLUSH_INTERVAL)
 			}
 		}()
 
@@ -81,7 +81,7 @@ func GetStatsInstance() *StatsManager {
 		go func() {
 			for {
 				singleton.abstract()
-				<-time.After(constants.DefaultStatAbstractInterval)
+				<-time.After(constants.DEFAULT_STAT_ABSTRACT_INTERVAL)
 			}
 		}()
 	})
@@ -100,7 +100,7 @@ func (sm *StatsManager) Record(t string, v interface{}, k ...string) error {
 		go func() { ch <- Hit{Val: v} }()
 		return nil
 	}
-	return constants.ErrStatTypeNotFound
+	return constants.ERR_STAT_TYPE_NOT_FOUND
 }
 
 // Specify the custom route to observe
@@ -180,17 +180,17 @@ func (sm *StatsManager) abstract() {
 		arr.Array = append(arr.Array,
 			Abstract{
 				Val:   pol.Funct(ext...),
-				Len:   constants.DefaultStatAbstractInterval.Seconds(),
-				MidTs: time.Now().Add(-constants.DefaultStatAbstractInterval / 2).Unix()})
+				Len:   constants.DEFAULT_STAT_ABSTRACT_INTERVAL.Seconds(),
+				MidTs: time.Now().Add(-constants.DEFAULT_STAT_ABSTRACT_INTERVAL / 2).Unix()})
 	}
 }
 
 func DefaultAbstractArray() *AbstractArray {
-	return &AbstractArray{[]Abstract{}, constants.StatsPolicySumOfInt}
+	return &AbstractArray{[]Abstract{}, constants.STATS_POLICY_SUM_OF_INTS}
 }
 
 func AbsPolicySumOfInt() *AbsPolicy {
-	return &AbsPolicy{constants.StatsPolicySumOfInt, func(vals ...Hit) interface{} {
+	return &AbsPolicy{constants.STATS_POLICY_SUM_OF_INTS, func(vals ...Hit) interface{} {
 		sum := 0
 		for _, v := range vals {
 			sum += v.Val.(int)

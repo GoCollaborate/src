@@ -31,5 +31,5 @@ func (this *TaskContext) Get(key string) (interface{}, error) {
 	if val := this.Context[key]; val != nil {
 		return val, nil
 	}
-	return nil, constants.ErrValNotFound
+	return nil, constants.ERR_VAL_NOT_FOUND
 }

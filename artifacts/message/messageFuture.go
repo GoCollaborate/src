@@ -24,7 +24,7 @@ func (cf *CardMessageFuture) Return(out *CardMessage) {
 
 func (cf *CardMessageFuture) Close() {
 	if len(cf.out) > 0 {
-		cf.err = constants.ErrMessageChannelDirty
+		cf.err = constants.ERR_MSG_CHAN_DIRTY
 	}
 	close(cf.out)
 }

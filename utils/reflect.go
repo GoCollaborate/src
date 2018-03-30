@@ -14,11 +14,11 @@ func ReflectFuncName(fun interface{}) string {
 }
 
 func StripRouteToAPIRoute(rt string) string {
-	return strings.Replace(strings.TrimPrefix(rt, "_"+constants.ProjectDir), ".", "/", -1)
+	return strings.Replace(strings.TrimPrefix(rt, "_"+constants.PROJECT_DIR), ".", "/", -1)
 }
 
 func StripRouteToFunctName(rt string) string {
-	return strings.Replace(strings.TrimPrefix(rt, "_"+constants.ProjectDir), ".", "/", -1)
+	return strings.Replace(strings.TrimPrefix(rt, "_"+constants.PROJECT_DIR), ".", "/", -1)
 }
 
 func Map(m interface{}) map[string]interface{} {

@@ -98,7 +98,7 @@ func (fs *FS) Add(f func(source *task.Collection,
 func (fs *FS) HAdd(f func(source *task.Collection,
 	result *task.Collection,
 	context *task.TaskContext) bool) (hash string) {
-	hash = utils.RandStringBytesMaskImprSrc(constants.DefaultHashLength)
+	hash = utils.RandStringBytesMaskImprSrc(constants.DEFAULT_HASH_LENGTH)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -126,21 +126,21 @@ func (fs *FS) Call(id string, source *task.Collection,
 		return bol
 	}
 
-	logger.LogError(constants.ErrFunctNotExist)
+	logger.LogError(constants.ERR_FUNCT_NOT_EXIST)
 	return bol
 }
 
 func (fs *FS) SetMapper(mp imapper.IMapper, name string) {
 	exe := iexecutor.Default()
 	exe.Todo(mp.Map)
-	exe.Type(constants.ExecutorTypeMapper)
+	exe.Type(constants.EXECUTOR_TYPE_MAPPER)
 	fs.executors[name] = exe
 }
 
 func (fs *FS) SetReducer(rd ireducer.IReducer, name string) {
 	exe := iexecutor.Default()
 	exe.Todo(rd.Reduce)
-	exe.Type(constants.ExecutorTypeReducer)
+	exe.Type(constants.EXECUTOR_TYPE_REDUCER)
 	fs.executors[name] = exe
 }
 
@@ -152,7 +152,7 @@ func (fs *FS) GetExecutor(name string) (iexecutor.IExecutor, error) {
 	if exe := fs.executors[name]; exe != nil {
 		return exe, nil
 	}
-	return iexecutor.Default(), constants.ErrExecutorNotFound
+	return iexecutor.Default(), constants.ERR_EXECUTOR_NOT_FOUND
 }
 
 func (fs *FS) SetJob(j *task.Job) {
@@ -163,7 +163,7 @@ func (fs *FS) GetJob(id string) (*task.Job, error) {
 	if j := fs.jobs[id]; j != nil {
 		return j, nil
 	}
-	return task.MakeJob(), constants.ErrJobNotExist
+	return task.MakeJob(), constants.ERR_JOB_NOT_EXIST
 }
 
 func (fs *FS) SetShared(key string, val *JobFunc) {
@@ -178,14 +178,14 @@ func (fs *FS) GetLocal(key string) (*JobFunc, error) {
 	if j := fs.LocalJobs[key]; j != nil {
 		return j, nil
 	}
-	return new(JobFunc), constants.ErrJobNotExist
+	return new(JobFunc), constants.ERR_JOB_NOT_EXIST
 }
 
 func (fs *FS) GetShared(key string) (*JobFunc, error) {
 	if j := fs.SharedJobs[key]; j != nil {
 		return j, nil
 	}
-	return new(JobFunc), constants.ErrJobNotExist
+	return new(JobFunc), constants.ERR_JOB_NOT_EXIST
 }
 
 func (fs *FS) AddLocal(methods []string, jobs ...func(w http.ResponseWriter, r *http.Request, bg *task.Background)) {
@@ -211,13 +211,13 @@ func (fs *FS) GetLimiter(name string) (*rate.Limiter, error) {
 	if lim != nil {
 		return lim, nil
 	}
-	return lim, constants.ErrLimiterNotFound
+	return lim, constants.ERR_LIMITER_NOT_FOUND
 }
 
 func (fs *FS) sweep() {
 	go func() {
 		for {
-			<-time.After(constants.DefaultGCInterval)
+			<-time.After(constants.DEFAULT_GC_INTERVAL)
 			// copy lookup table
 			stack := fs.memstack
 			for k, s := range stack {

@@ -24,7 +24,7 @@ func (tf *TaskFuture) Return(out bool) {
 
 func (tf *TaskFuture) Close() {
 	if len(tf.out) > 0 {
-		tf.err = constants.ErrTaskChannelDirty
+		tf.err = constants.ERR_TASK_CHAN_DIRTY
 	}
 	close(tf.out)
 }

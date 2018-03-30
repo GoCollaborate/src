@@ -23,7 +23,7 @@ func NewServiceClientStub(endpoint string, port int32, secure ...bool) (stub *Se
 			clientContact.GetFullIP(),
 			grpc.WithInsecure(),
 			grpc.WithBlock(),
-			grpc.WithTimeout(constants.DefaultRPCDialTimeout),
+			grpc.WithTimeout(constants.DEFAULT_RPC_DIAL_TIMEOUT),
 		)
 
 		if err != nil {
