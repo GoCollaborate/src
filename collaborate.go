@@ -120,11 +120,6 @@ func Run(vars ...*cmd.SysVars) {
 
 	logger.LogLogo("", "(c) 2017 GoCollaborate", "", "Author: Hastings Yeung", "Github: https://github.com/GoCollaborate", "")
 
-	// WARNING: Deprecated since GoCollaborate ver 0.5.x
-	// case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-	// 	cdnt := coordinator.GetCoordinatorInstance(int32(runVars.Port))
-	// 	cdnt.Handle(router)
-
 	// create collaborator
 	clbt := collaborator.NewCollaborator()
 
