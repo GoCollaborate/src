@@ -106,16 +106,17 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 		}
 	}()
 
-	go func() {
-		// service registry
-		clbt.RegisterService()
-		connected := err == nil
-		// service mornitoring
-		for connected {
-			<-time.After(constants.DefaultHeartbeatInterval)
-			clbt.HeartBeat()
-		}
-	}()
+	// WARNING: Deprecated since GoCollaborate ver 0.5.x
+	// go func() {
+	// 	// service registry
+	// 	clbt.RegisterService()
+	// 	connected := err == nil
+	// 	// service mornitoring
+	// 	for connected {
+	// 		<-time.After(constants.DefaultHeartbeatInterval)
+	// 		clbt.HeartBeat()
+	// 	}
+	// }()
 }
 
 // Catchup with peer servers.

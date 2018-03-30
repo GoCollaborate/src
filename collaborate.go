@@ -9,7 +9,6 @@ import (
 	"github.com/GoCollaborate/src/cmd"
 	"github.com/GoCollaborate/src/collaborator"
 	"github.com/GoCollaborate/src/constants"
-	"github.com/GoCollaborate/src/coordinator"
 	"github.com/GoCollaborate/src/logger"
 	"github.com/GoCollaborate/src/store"
 	"github.com/GoCollaborate/src/utils"
@@ -122,7 +121,12 @@ func Run(vars ...*cmd.SysVars) {
 	logger.LogLogo("", "(c) 2017 GoCollaborate", "", "Author: Hastings Yeung", "Github: https://github.com/GoCollaborate", "")
 
 	switch runVars.ServerMode {
-	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
+	// WARNING: Deprecated since GoCollaborate ver 0.5.x
+	// case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
+	// 	cdnt := coordinator.GetCoordinatorInstance(int32(runVars.Port))
+	// 	cdnt.Handle(router)
+
+	default:
 		// create collaborator
 		clbt := collaborator.NewCollaborator()
 
@@ -133,10 +137,6 @@ func Run(vars ...*cmd.SysVars) {
 		clbt.Join(mst)
 
 		clbt.Handle(router)
-
-	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		cdnt := coordinator.GetCoordinatorInstance(int32(runVars.Port))
-		cdnt.Handle(router)
 	}
 
 	// launch server

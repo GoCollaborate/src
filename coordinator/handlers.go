@@ -532,55 +532,6 @@ func HandlerFuncUnSubscribeService(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
-// // DELETE
-// func HandlerFuncDeRegisterServiceAll(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	srvID := vars["srvid"]
-
-// 	serviceHelper.SendServiceWith(w, &payload, http.StatusOK)
-
-// 	if _, ok := singleton.Services[srvID]; !ok {
-// 		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), http.StatusNotFound)
-// 		return constants.ErrNoService
-// 	}
-// 	services := map[string]*service.Service{}
-// 	services[srvID] = singleton.Services[srvID]
-// 	payload := service.ServicePayload{
-// 		Data:     serviceHelper.MarshalServiceToStandardResource(services),
-// 		Included: []service.ServiceResource{},
-// 		Links: restful.Links{
-// 			Self: r.URL.String(),
-// 		},
-// 	}
-// 	singleton.Services[srvID].DeRegisterAll()
-
-// 	serviceHelper.SendServiceWith(w, &payload, http.StatusOK)
-// 	return
-// }
-
-// // DELETE
-// func HandlerFuncUnSubscribeServiceAll(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	srvID := vars["srvid"]
-
-// 	if _, ok := singleton.Services[srvID]; !ok {
-// 		restfulHelper.SendErrorWith(w, restful.Error404NotFound(), http.StatusNotFound)
-// 		return constants.ErrNoService
-// 	}
-// 	services := map[string]*service.Service{}
-// 	services[srvID] = singleton.Services[srvID]
-// 	payload := service.ServicePayload{
-// 		Data:     serviceHelper.MarshalServiceToStandardResource(services),
-// 		Included: []service.ServiceResource{},
-// 		Links: restful.Links{
-// 			Self: r.URL.String(),
-// 		},
-// 	}
-// 	singleton.Services[srvID].UnSubscribeAll()
-// 	serviceHelper.SendServiceWith(w, &payload, http.StatusOK)
-// 	return
-// }
-
 // return error if client is not in the subscriber list
 func HandlerFuncQueryService(w http.ResponseWriter, r *http.Request) {
 	var (

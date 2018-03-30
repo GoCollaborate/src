@@ -18,7 +18,13 @@ type ServiceClientStub struct {
 func NewServiceClientStub(endpoint string, port int32, secure ...bool) (stub *ServiceClientStub, err error) {
 	if len(secure) < 1 {
 		clientContact := card.Card{endpoint, port, true, "", false}
-		conn, err := grpc.Dial(clientContact.GetFullIP(), grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(constants.DefaultRPCDialTimeout))
+
+		conn, err := grpc.Dial(
+			clientContact.GetFullIP(),
+			grpc.WithInsecure(),
+			grpc.WithBlock(),
+			grpc.WithTimeout(constants.DefaultRPCDialTimeout),
+		)
 
 		if err != nil {
 			logger.LogError("Dialing:", err)

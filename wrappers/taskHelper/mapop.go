@@ -16,7 +16,7 @@ func Map(ins map[int]*task.Task, ens ...[]int) *mapop {
 	}
 }
 
-// reduce the result from input set to the source of output set
+// reduce the source from input set to the source of output set
 func (mop *mapop) ReduceTo(exs []int) map[int]*task.Task {
 	var (
 		length  int                = len(exs)
