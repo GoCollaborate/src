@@ -1,25 +1,21 @@
 package collaborator
 
 import (
-	"bytes"
-	"encoding/json"
 	"fmt"
 	"github.com/GoCollaborate/src/artifacts/card"
 	"github.com/GoCollaborate/src/artifacts/iexecutor"
 	"github.com/GoCollaborate/src/artifacts/iworkable"
 	"github.com/GoCollaborate/src/artifacts/message"
-	"github.com/GoCollaborate/src/artifacts/restful"
-	"github.com/GoCollaborate/src/artifacts/service"
 	"github.com/GoCollaborate/src/artifacts/stats"
 	"github.com/GoCollaborate/src/artifacts/task"
 	"github.com/GoCollaborate/src/cmd"
 	"github.com/GoCollaborate/src/constants"
+	"github.com/GoCollaborate/src/helpers/cardHelper"
+	"github.com/GoCollaborate/src/helpers/messageHelper"
 	"github.com/GoCollaborate/src/logger"
 	"github.com/GoCollaborate/src/store"
 	"github.com/GoCollaborate/src/utils"
 	"github.com/GoCollaborate/src/web"
-	"github.com/GoCollaborate/src/wrappers/cardHelper"
-	"github.com/GoCollaborate/src/wrappers/messageHelper"
 	"github.com/gorilla/mux"
 	"net/http"
 	"strconv"
@@ -27,9 +23,9 @@ import (
 )
 
 const (
-	MAXIDLECONNECTIONS int           = 20
-	REQUESTTIMEOUT     time.Duration = 5
-	UPDATEINTERVAL     time.Duration = 1
+	MAX_IDLE_CONNECTIONS int           = 20
+	REQUEST_TIMEOUT      time.Duration = 5
+	UPDATE_INTERVAL      time.Duration = 1
 )
 
 // Collaborator is a helper struct to operate on any inner trxs.
@@ -38,6 +34,7 @@ type Collaborator struct {
 	Workable iworkable.Workable
 }
 
+// Return an instance of Collaborator
 func NewCollaborator() *Collaborator {
 	return &Collaborator{*newCase(), iworkable.Dummy()}
 }
@@ -98,7 +95,7 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 	go func() {
 		for {
 			clbt.Catchup()
-			<-time.After(constants.DefaultSyncInterval)
+			<-time.After(constants.DEFAULT_SYNC_INTERVAL)
 			// clean collaborators that are no longer alive
 			clbt.Clean()
 			// dump data to local store
@@ -106,16 +103,6 @@ func (clbt *Collaborator) Join(wk iworkable.Workable) {
 		}
 	}()
 
-	go func() {
-		// service registry
-		clbt.RegisterService()
-		connected := err == nil
-		// service mornitoring
-		for connected {
-			<-time.After(constants.DefaultHeartbeatInterval)
-			clbt.HeartBeat()
-		}
-	}()
 }
 
 // Catchup with peer servers.
@@ -197,94 +184,12 @@ func (clbt *Collaborator) Clean() {
 	cardHelper.RangePrint(cards)
 }
 
-func (clbt *Collaborator) RegisterService() error {
-	var (
-		cdntIP   = clbt.CardCase.Coordinator.GetFullIP()
-		clbtIP   = clbt.CardCase.Local.GetFullIP()
-		services = map[string]*service.Service{}
-		reader   = new(bytes.Buffer)
-		router   = store.GetRouter()
-	)
-
-	// verify existence of cluster
-	resp, err := http.Get("http://" + cdntIP + "/v1/cluster/" + clbt.CardCase.CaseID + "/services")
-	if err != nil {
-		return err
-	}
-
-	// if cluster already get created, the creator of cluster is responsible for
-	// maintaining the service discovery capability on coordinator
-	if resp.StatusCode >= 200 && resp.StatusCode <= 299 {
-		return err
-	}
-
-	router.Walk(
-		func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
-			t, err := route.GetPathTemplate()
-			if err != nil {
-				return err
-			}
-			svr := service.NewService()
-			svr.Description = route.GetName()
-			svr.Methods, _ = route.GetMethods()
-			svr.RegList = append(svr.RegList, card.Card{
-				IP:    clbt.CardCase.Local.IP,
-				Port:  clbt.CardCase.Local.Port,
-				API:   t,
-				Alive: true,
-			})
-			services[clbtIP+t] = svr
-			return nil
-		})
-
-	json.
-		NewEncoder(
-			reader,
-		).
-		Encode(
-			restful.NewRequest().
-				WithResourceArr(service.NewServiceResourcesFromMap(&services)),
-		)
-
-	// walk through services and get them created on the coordinator
-	resp2, err := http.Post(
-		"http://"+cdntIP+"/v1/services",
-		"application/json",
-		reader,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = http.Post(
-		"http://"+cdntIP+"/v1/cluster/"+clbt.CardCase.CaseID+"/services",
-		"application/json",
-		resp2.Body,
-	)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (clbt *Collaborator) HeartBeat() {
-	var (
-		cdntIP    = clbt.CardCase.Coordinator.GetFullIP()
-		clusterID = clbt.CardCase.GetCluster()
-	)
-
-	http.Get("http://" + cdntIP + "/v1/cluster/" + clusterID + "/heartbeat")
-}
-
 // Start handling server routes.
 func (clbt *Collaborator) Handle(router *mux.Router) *mux.Router {
 
 	// register dashboard
 	router.HandleFunc("/", web.Index).Methods("GET").Name("Index")
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.LibUnixDir+"static/")))).Name("Static")
+	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(constants.LIB_UNIX_DIR+"static/")))).Name("Static")
 	router.HandleFunc("/dashboard/profile", web.Profile).Methods("GET").Name("Profile")
 	router.HandleFunc("/dashboard/routes", web.Routes).Methods("GET").Name("Routes")
 	router.HandleFunc("/dashboard/logs", web.Logs).Methods("GET").Name("Logs")
@@ -331,7 +236,7 @@ func (clbt *Collaborator) DistributeSeq(sources map[int]*task.Task) (map[int]*ta
 	chs := make(map[int]chan *task.Task)
 
 	if l2 < 1 {
-		return result, constants.ErrNoPeers
+		return result, constants.ERR_NO_PEERS
 	}
 	// waiting for rpc responses
 	printProgress(counter, l1)
@@ -503,13 +408,13 @@ func (clbt *Collaborator) LocalDistribute(pmaps *map[int]*task.Task, stacks []st
 
 		switch exe.Type() {
 		// mapper
-		case constants.ExecutorTypeMapper:
+		case constants.EXECUTOR_TYPE_MAPPER:
 			maps, err = exe.Execute(maps)
 			if err != nil {
 				return err
 			}
 		// reducer
-		case constants.ExecutorTypeReducer:
+		case constants.EXECUTOR_TYPE_REDUCER:
 			maps, err = exe.Execute(maps)
 			if err != nil {
 				return err
@@ -551,14 +456,14 @@ func (clbt *Collaborator) SharedDistribute(pmaps *map[int]*task.Task, stacks []s
 
 		switch exe.Type() {
 		// mapper
-		case constants.ExecutorTypeMapper:
+		case constants.EXECUTOR_TYPE_MAPPER:
 			maps, err = exe.Execute(maps)
 			if err != nil {
 				return err
 			}
 			maps, err = clbt.DistributeSeq(maps)
 			// reducer
-		case constants.ExecutorTypeReducer:
+		case constants.EXECUTOR_TYPE_REDUCER:
 			maps, err = exe.Execute(maps)
 			if err != nil {
 				return err

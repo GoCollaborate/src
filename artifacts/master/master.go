@@ -50,8 +50,8 @@ func (m *Master) DoneMulti(ts map[int]*task.Task) error {
 		case <-f.IsDone():
 			f.Close()
 			continue
-		case <-time.After(constants.DefaultTaskExpireTime):
-			return constants.ErrTimeout
+		case <-time.After(constants.DEFAULT_TASK_EXPIRY_TIME):
+			return constants.ERR_TASK_TIMEOUT
 		}
 	}
 	return nil
@@ -76,8 +76,8 @@ func (m *Master) Done(t *task.Task) error {
 	case <-future.IsDone():
 		future.Close()
 		return nil
-	case <-time.After(constants.DefaultTaskExpireTime):
-		return constants.ErrTimeout
+	case <-time.After(constants.DEFAULT_TASK_EXPIRY_TIME):
+		return constants.ERR_TASK_TIMEOUT
 	}
 
 	return nil

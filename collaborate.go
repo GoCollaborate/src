@@ -9,7 +9,6 @@ import (
 	"github.com/GoCollaborate/src/cmd"
 	"github.com/GoCollaborate/src/collaborator"
 	"github.com/GoCollaborate/src/constants"
-	"github.com/GoCollaborate/src/coordinator"
 	"github.com/GoCollaborate/src/logger"
 	"github.com/GoCollaborate/src/store"
 	"github.com/GoCollaborate/src/utils"
@@ -23,16 +22,16 @@ import (
 func Set(key string, val ...interface{}) interface{} {
 	cmd.Init()
 	switch key {
-	case constants.Mapper:
+	case constants.MAPPER:
 		fs := store.GetInstance()
 		fs.SetMapper(val[0].(imapper.IMapper), val[1].(string))
-	case constants.Reducer:
+	case constants.REDUCER:
 		fs := store.GetInstance()
 		fs.SetReducer(val[0].(ireducer.IReducer), val[1].(string))
-	case constants.Executor:
+	case constants.EXECUTOR:
 		fs := store.GetInstance()
 		fs.SetExecutor(val[0].(iexecutor.IExecutor), val[1].(string))
-	case constants.Function:
+	case constants.FUNCTION:
 		// register function
 		fs := store.GetInstance()
 		f := val[0].(func(source *task.Collection,
@@ -43,14 +42,14 @@ func Set(key string, val ...interface{}) interface{} {
 			break
 		}
 		fs.Add(f)
-	case constants.HashFunction:
+	case constants.HASH_FUNCTION:
 		// register hash function
 		fs := store.GetInstance()
 		f := val[0].(func(source *task.Collection,
 			result *task.Collection,
 			context *task.TaskContext) bool)
 		return fs.HAdd(f)
-	case constants.Shared:
+	case constants.SHARED:
 		fs := store.GetInstance()
 
 		methods := val[0].([]string)
@@ -61,7 +60,7 @@ func Set(key string, val ...interface{}) interface{} {
 
 		// register jobs
 		fs.AddShared(methods, handlers...)
-	case constants.Local:
+	case constants.LOCAL:
 		fs := store.GetInstance()
 
 		methods := val[0].([]string)
@@ -72,11 +71,11 @@ func Set(key string, val ...interface{}) interface{} {
 
 		// register jobs
 		fs.AddLocal(methods, handlers...)
-	case constants.Limit:
+	case constants.LIMIT:
 		var (
 			fs    = store.GetInstance()
-			limit = constants.DefaultJobRequestRefillInterval
-			burst = constants.DefaultJobRequestBurst
+			limit = constants.DEFAULT_JOB_REQUEST_REFILL_INTERVAL
+			burst = constants.DEFAULT_JOB_REQUEST_BURST
 		)
 		if len(val) > 1 {
 			limit = val[1].(time.Duration)
@@ -85,10 +84,10 @@ func Set(key string, val ...interface{}) interface{} {
 			burst = val[2].(int)
 		}
 		fs.SetLimiter(val[0].(string), rate.Every(limit), burst)
-	case constants.ProjectPath:
-		constants.ProjectDir = val[0].(string)
-	case constants.ProjectUnixPath:
-		constants.ProjectUnixDir = val[0].(string)
+	case constants.PROJECT_PATH:
+		constants.PROJECT_DIR = val[0].(string)
+	case constants.PROJECT_UNIX_PATH:
+		constants.PROJECT_UNIX_DIR = val[0].(string)
 	}
 	return nil
 }
@@ -105,10 +104,10 @@ func Run(vars ...*cmd.SysVars) {
 	runVars := cmd.Vars()
 
 	switch runVars.CleanHistory {
-	case constants.CleanHistory:
-		localLogger, logFile = logger.NewLogger(runVars.LogPath, constants.DefaultLogPrefix, true)
+	case constants.CLEAN_HISTORY:
+		localLogger, logFile = logger.NewLogger(runVars.LogPath, constants.DEFAULT_LOG_PREFIX, true)
 	default:
-		localLogger, logFile = logger.NewLogger(runVars.LogPath, constants.DefaultLogPrefix, true)
+		localLogger, logFile = logger.NewLogger(runVars.LogPath, constants.DEFAULT_LOG_PREFIX, true)
 	}
 
 	// set handler for router
@@ -121,29 +120,22 @@ func Run(vars ...*cmd.SysVars) {
 
 	logger.LogLogo("", "(c) 2017 GoCollaborate", "", "Author: Hastings Yeung", "Github: https://github.com/GoCollaborate", "")
 
-	switch runVars.ServerMode {
-	case constants.CollaboratorModeAbbr, constants.CollaboratorMode:
-		// create collaborator
-		clbt := collaborator.NewCollaborator()
+	// create collaborator
+	clbt := collaborator.NewCollaborator()
 
-		mst := master.NewMaster()
-		mst.BatchAttach(runVars.MaxRoutines)
-		mst.LaunchAll()
+	mst := master.NewMaster()
+	mst.BatchAttach(runVars.WorkerPerMaster)
+	mst.LaunchAll()
 
-		clbt.Join(mst)
+	clbt.Join(mst)
 
-		clbt.Handle(router)
-
-	case constants.CoordinatorModeAbbr, constants.CoordinatorMode:
-		cdnt := coordinator.GetCoordinatorInstance(int32(runVars.Port))
-		cdnt.Handle(router)
-	}
+	clbt.Handle(router)
 
 	// launch server
 	serv := &http.Server{
 		Addr:        ":" + strconv.Itoa(runVars.Port),
 		Handler:     router,
-		ReadTimeout: constants.DefaultReadTimeout,
+		ReadTimeout: constants.DEFAULT_READ_TIMEOUT,
 	}
 	err := serv.ListenAndServe()
 	logger.LogError(err.Error())

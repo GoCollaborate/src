@@ -1,5 +1,6 @@
 # GoCollaborate
 [![Build Status](https://travis-ci.org/GoCollaborate/tests.svg?branch=master)](https://travis-ci.org/GoCollaborate/tests)
+[![Go Report Card](https://goreportcard.com/badge/github.com/GoCollaborate/src)](https://goreportcard.com/report/github.com/GoCollaborate/src)
 ![alt text](https://github.com/HastingsYoung/GoCollaborate/raw/master/home.png "Docs Home Page")
 ## What is GoCollaborate?
 GoCollaborate is an universal framework for stream computing and distributed services management that you can easily program with, build extension on, and on top of which you can create your own high performance distributed applications.

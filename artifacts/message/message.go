@@ -17,7 +17,7 @@ func NewCardMessage() *CardMessage {
 func NewCardMessageWithOptions(cluster string, from *card.Card, to *card.Card, cards map[string]*card.Card, timestamp int64, msgType CardMessage_Type) *CardMessage {
 	message := new(CardMessage)
 	message.Digest = new(digest.Digest)
-	message.SetCluster(cluster).SetFrom(from).SetTo(to).SetCards(cards).SetTimeStamp(timestamp).SetStatus(constants.GossipHeaderUnknownError).SetType(msgType)
+	message.SetCluster(cluster).SetFrom(from).SetTo(to).SetCards(cards).SetTimeStamp(timestamp).SetStatus(constants.GOSSIP_HEADER_UNKNOWN_ERROR).SetType(msgType)
 	return message
 }
 

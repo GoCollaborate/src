@@ -38,5 +38,5 @@ func renderTemplate(w http.ResponseWriter, tmpl string) {
 }
 
 func makePath(path string) string {
-	return filepath.Join(constants.LibUnixDir+"web", "templates", path)
+	return filepath.Join(constants.LIB_UNIX_DIR+"web", "templates", path)
 }
