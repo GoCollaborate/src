@@ -34,6 +34,7 @@ type Collaborator struct {
 	Workable iworkable.Workable
 }
 
+// Return an instance of Collaborator
 func NewCollaborator() *Collaborator {
 	return &Collaborator{*newCase(), iworkable.Dummy()}
 }

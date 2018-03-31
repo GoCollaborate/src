@@ -22,10 +22,12 @@ const LOWERCASE = 3
 var singleton *Logger
 var once sync.Once
 
+// The logger instance.
 type Logger struct {
 	Internal *log.Logger
 }
 
+// Return an instance of logger.
 func NewLogger(filePath string, prefix string, clean ...bool) (*Logger, *os.File) {
 	once.Do(func() {
 		var (
