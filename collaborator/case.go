@@ -18,17 +18,20 @@ import (
 
 var mu = sync.Mutex{}
 
+// A central collection of Collaborators across the cluster.
 type Case struct {
 	CaseID string `json:"caseid,omitempty"`
 	*Exposed
 	*Reserved
 }
 
+// The exposed card addresses.
 type Exposed struct {
 	Cards     map[string]*card.Card `json:"cards,omitempty"`
 	TimeStamp int64                 `json:"timestamp,omitempty"`
 }
 
+// The reserved card addresses.
 type Reserved struct {
 	// local is the Card of localhost
 	Local       card.Card `json:"local,omitempty"`
