@@ -73,7 +73,7 @@ func (op *CSVOperator) Fill(v interface{}) error {
 	case StatusNormal:
 		return Decode(op.s.Reader, v)
 	}
-	return constants.ErrInputStreamCorrupted
+	return constants.ERR_INPUT_STREAM_CORRUPTED
 }
 
 // The code below is inspired and adapted from radioinmyhead/csv (https://github.com/radioinmyhead/csv/blob/master/csv.go)
@@ -132,7 +132,7 @@ func csv2map(in io.Reader) ([]map[string]string, error) {
 func map2list(m []map[string]string, v interface{}) (err error) {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
-		return constants.ErrIODecodePointerRequired
+		return constants.ERR_IO_DECODE_POINTER_REQUIRED
 	}
 
 	for {
@@ -143,7 +143,7 @@ func map2list(m []map[string]string, v interface{}) (err error) {
 		break
 	}
 	if rv.Kind() != reflect.Slice {
-		return constants.ErrIODecodeSliceRequired
+		return constants.ERR_IO_DECODE_SLICE_REQUIRED
 	}
 	ret := reflect.MakeSlice(rv.Type(), 0, 0)
 	for _, i := range m {
@@ -165,7 +165,7 @@ func map2struct(m map[string]string, v reflect.Value) (err error) {
 		v = v.Elem()
 	}
 	if v.Kind() != reflect.Struct {
-		return constants.ErrIODecodeStructRequired
+		return constants.ERR_IO_DECODE_STRUCT_REQUIRED
 	}
 	return value(m, v)
 }
@@ -190,7 +190,7 @@ func value(m map[string]string, v reflect.Value) error {
 		d := getMapValue(m, k)
 		switch f.Kind() {
 		default:
-			err = constants.ErrInputStreamNotSupported
+			err = constants.ERR_INPUT_STREAM_NOT_SUPPORTED
 		case reflect.Struct:
 			if t == "extends" {
 				err = value(m, f)
